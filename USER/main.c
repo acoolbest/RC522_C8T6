@@ -25,6 +25,7 @@
 #include "sim800c.h"
 #include "rc522.h"
 #include "relay.h"
+#include "buzzer.h"
 #endif
 /************************************************
  ALIENTEK Mini STM32开发板 扩展实验17
@@ -100,13 +101,16 @@ int main(void)
 	//uart_init(115200);
 	RS485_init(RS485_BaudRate);
 	relay_init();						//继电器初始化
+	buzzer_init();//蜂鸣器初始化
 	RC522_Init();
  	USART2_Init(115200);
  	USART3_Init(9600);
 	delay_ms(0);						//启动系统时钟
-	
+
 	while(1)
 	{
+		buzzer_play(BUZZER_PLAY_UNLOCK);
+		buzzer_play(BUZZER_PLAY_LOCK);
 		time_out_relay_lock();
 		//sim_at_response(1);
 		sim800c_test();					//GSM测试
