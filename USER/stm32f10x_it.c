@@ -81,6 +81,7 @@ void SysTick_Handler(void)
 {
 	TimingDelay_Decrement();
 	time_sys++;
+	if(time_lock) time_lock++;
 	LED0 = 1;
 }
 

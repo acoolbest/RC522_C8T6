@@ -749,6 +749,95 @@ uint8_t PcdWrite0Block(void)
 	return MI_ERR;
 }
 
+void RC522_Init(void)
+{
+	RC522_IO_Init();
+	PcdReset();
+	PcdAntennaOff();
+	delay_ms(2);
+	PcdAntennaOn();
+}
+
+/////////////////////////////////////////////////////////////////////
+//功    能：读卡或写卡
+//参数说明: addr[IN]：块地址，
+//			pSnr[IN]：卡片序列号，4字节
+//返    回: 成功返回MI_OK
+/////////////////////////////////////////////////////////////////////
+uint8_t change_key(uint8_t addr, uint8_t *pSnr)
+{
+	uint8_t key_addr = addr/4*4+3;
+	uint8_t data[16] = {0xff,0xff,0xff,0xff,0xff,0xff,
+						0xff,0x07,0x80,0x69,
+						0xff,0xff,0xff,0xff,0xff,0xff};
+	uint8_t key_default[6] = {0xff,0xff,0xff,0xff,0xff,0xff};
+	uint8_t keyA[6] = {0x02,0x00,0x01,0x08,0x00,0x06};
+	uint8_t keyB[6] = {0x32,0x30,0x31,0x38,0x30,0x36};
+	if(PcdAuthState(PICC_AUTHENT1A,key_addr,key_default,pSnr) == MI_OK)
+	{
+		if(PcdRead(key_addr,data) == MI_OK)
+		{
+			memcpy(data, keyA, 6);
+			memcpy(data+10, keyB, 6);
+			return PcdWrite(key_addr, data);
+		}
+	}
+	return MI_ERR;
+}
+
+/////////////////////////////////////////////////////////////////////
+//功    能：读卡或写卡
+//参数说明: type：操作类型，
+//			data：卡数据，改写data为读出的数据
+//返    回: 成功返回MI_OK
+/////////////////////////////////////////////////////////////////////
+
+uint8_t RC522_RW(uint8_t type, uint8_t * data)
+{
+	uint8_t Card_Type[2];
+	uint8_t Card_ID[4];
+	uint8_t key_default[6] = {0xff,0xff,0xff,0xff,0xff,0xff};    
+	uint8_t keyA[6] = {0x02,0x00,0x01,0x08,0x00,0x06};   //密码
+	
+	static uint8_t req_code = PICC_REQALL;
+	
+	if(PcdRequest(req_code, Card_Type) == MI_OK)
+	{
+		uint16_t cardType = (Card_Type[0]<<8)|Card_Type[1];
+		if(cardType == 0x4400 
+			|| cardType == 0x0400
+			|| cardType == 0x0200
+			|| cardType == 0x0800
+			|| cardType == 0x4403)
+		{
+			if(PcdAnticoll(Card_ID) == MI_OK && PcdSelect(Card_ID) == MI_OK)
+			{
+				if(PcdAuthState(PICC_AUTHENT1A,5,key_default,Card_ID) == MI_OK)
+				{
+					change_key(5, Card_ID);//改密码
+				}
+				if(PcdAuthState(PICC_AUTHENT1A,5,keyA,Card_ID) == MI_OK)
+				{
+					if(type == RC522_WRITE_TYPE)
+					{
+						if(PcdWrite(5,data) != MI_OK) return MI_ERR;
+						delay_us(8);
+					}
+					
+					if(PcdRead(5,data) == MI_OK)
+					{
+						PcdHalt();
+						req_code = PICC_REQIDL;
+						return MI_OK;
+
+					}
+				}
+			}
+		}
+	}
+	return MI_ERR;
+}
+
 void RC522_test(void)
 {
 	uint8_t i;
