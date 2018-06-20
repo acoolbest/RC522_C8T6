@@ -334,7 +334,7 @@
               <MiscControls></MiscControls>
               <Define>STM32F10X_MD,USE_STDPERIPH_DRIVER</Define>
               <Undefine></Undefine>
-              <IncludePath>..\HARDWARE\LED;..\SYSTEM\delay;..\SYSTEM\sys;..\SYSTEM\usart;..\USER;..\STM32F10x_FWLib\inc;..\CORE;..\HARDWARE\LCD;..\HARDWARE\KEY;..\HARDWARE\SPI;..\HARDWARE\SD;..\MALLOC;..\USMART;..\HARDWARE\FLASH;..\FATFS\src;..\FATFS\exfuns;..\TEXT;..\HARDWARE\24CXX;..\HARDWARE\TIMER;..\HARDWARE\TOUCH;..\HARDWARE\USART2;..\HARDWARE\IIC;..\SIM800C;..\USMART;..\HARDWARE\USART3;..\RC522;..\HARDWARE\RELAY</IncludePath>
+              <IncludePath>..\HARDWARE\LED;..\SYSTEM\delay;..\SYSTEM\sys;..\SYSTEM\usart;..\USER;..\STM32F10x_FWLib\inc;..\CORE;..\HARDWARE\LCD;..\HARDWARE\KEY;..\HARDWARE\SPI;..\HARDWARE\SD;..\MALLOC;..\USMART;..\HARDWARE\FLASH;..\FATFS\src;..\FATFS\exfuns;..\TEXT;..\HARDWARE\24CXX;..\HARDWARE\TIMER;..\HARDWARE\TOUCH;..\HARDWARE\USART2;..\HARDWARE\IIC;..\SIM800C;..\USMART;..\HARDWARE\USART3;..\RC522;..\HARDWARE\RELAY;..\HARDWARE\BUZZER;..\HARDWARE\PWM</IncludePath>
             </VariousControls>
           </Cads>
           <Aads>
@@ -426,6 +426,16 @@
               <FileName>relay.c</FileName>
               <FileType>1</FileType>
               <FilePath>..\HARDWARE\RELAY\relay.c</FilePath>
+            </File>
+            <File>
+              <FileName>buzzer.c</FileName>
+              <FileType>1</FileType>
+              <FilePath>..\HARDWARE\BUZZER\buzzer.c</FilePath>
+            </File>
+            <File>
+              <FileName>pwm.c</FileName>
+              <FileType>1</FileType>
+              <FilePath>..\HARDWARE\PWM\pwm.c</FilePath>
             </File>
           </Files>
         </Group>

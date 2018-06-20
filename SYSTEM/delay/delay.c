@@ -65,7 +65,7 @@ void SysTick_Init(void)
 	 * SystemFrequency / 100000	 10us中断一次
 	 * SystemFrequency / 1000000 1us中断一次
 	 */
-	if (SysTick_Config(SystemCoreClock / 1000000))
+	if (SysTick_Config(SystemCoreClock / 1000))
 	{ 
 		/* Capture error */ 
 		while (1);
@@ -99,10 +99,11 @@ void delay_us(__IO u32 nTime)
   */
 void delay_ms(__IO u32 nTime)
 {
-	while(nTime--)
-	{
-		delay_us(1000);
-	}
+	delay_us(nTime);
+	//while(nTime--)
+	//{
+	//	delay_us(1000);
+	//}
 }
 
 

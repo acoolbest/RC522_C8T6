@@ -94,15 +94,15 @@
 
 int main(void)
 {
-	uint8_t RC522_buffer[16] = {0};
+	//uint8_t RC522_buffer[16] = {0};
 	SysTick_Init();
 	LED_Init();
 	NVIC_Configuration();
 	//uart_init(115200);
 	RS485_init(RS485_BaudRate);
-	relay_init();						//继电器初始化
-	buzzer_init();//蜂鸣器初始化
-	RC522_Init();
+	//relay_init();						//继电器初始化
+	buzzer_init();						//蜂鸣器初始化
+	//RC522_Init();
  	USART2_Init(115200);
  	USART3_Init(9600);
 	delay_ms(0);						//启动系统时钟
@@ -110,13 +110,17 @@ int main(void)
 	while(1)
 	{
 		buzzer_play(BUZZER_PLAY_UNLOCK);
+		delay_ms(1000);
 		buzzer_play(BUZZER_PLAY_LOCK);
+		delay_ms(3000);
+		#if 0
 		time_out_relay_lock();
 		//sim_at_response(1);
 		sim800c_test();					//GSM测试
 		RC522_test();					//GSM测试
 		RC522_RW(RC522_READ_TYPE, RC522_buffer);
 		RC522_RW(RC522_WRITE_TYPE, RC522_buffer);
+		#endif
 	}
 }
 #endif

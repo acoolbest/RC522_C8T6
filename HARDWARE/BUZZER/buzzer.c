@@ -112,7 +112,7 @@ const tNote MyScore3[]=
 // 定义乐曲：《开锁铃声》
 const tNote song_unlock[]=
 {
-  {H7,TT/4},{L3,TT/8},{L5,TT/8},
+  {M6,TT/12},{M6,TT/12},{M6,TT/12},
   {0,0},
 };
 #endif
@@ -122,11 +122,10 @@ const tNote song_unlock[]=
 // 定义乐曲：《关锁铃声》
 const tNote song_lock[]=
 {
-  {L6,TT/8},{L3,TT/8},{L5,TT/8},
+  {M5,TT/12},{M1,TT/12},{M5,TT/12},
   {0,0},
 };
 #endif
-
 
 // 蜂鸣器停止发声
 void buzzerQuiet(void)	
@@ -167,7 +166,7 @@ void buzzerSound(unsigned short usFreq)
 	}  
 }
 
-void musicPlay(const tNote * MyScore) 
+void musicPlay(const tNote * MyScore)
 { 
 	u8 i=0; 
 	while(1) 
