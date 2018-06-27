@@ -74,7 +74,7 @@ void SysTick_Init(void)
 	SysTick->CTRL &= ~ SysTick_CTRL_ENABLE_Msk;
 }
 
-
+#if 0
 /**
   * @brief   us延时程序,1us为一个单位
   * @param  
@@ -90,6 +90,7 @@ void delay_us(__IO u32 nTime)
 
 	while(TimingDelay != 0);
 }
+#endif
 
 /**
   * @brief   ms延时程序,1ms为一个单位
@@ -99,11 +100,12 @@ void delay_us(__IO u32 nTime)
   */
 void delay_ms(__IO u32 nTime)
 {
-	delay_us(nTime);
-	//while(nTime--)
-	//{
-	//	delay_us(1000);
-	//}
+	TimingDelay = nTime;	
+
+	// 使能滴答定时器  
+	SysTick->CTRL |=  SysTick_CTRL_ENABLE_Msk;
+
+	while(TimingDelay != 0);
 }
 
 

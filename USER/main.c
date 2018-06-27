@@ -104,7 +104,7 @@ int main(void)
 	buzzer_init();						//蜂鸣器初始化
 	//RC522_Init();
  	USART2_Init(115200);
- 	USART3_Init(9600);
+ 	//USART3_Init(9600);
 	delay_ms(0);						//启动系统时钟
 
 	while(1)

@@ -7,7 +7,7 @@ void delay_ms(u16 nms);
 void delay_us(u32 nus);
 #endif
 void SysTick_Init(void);
-void delay_us(__IO u32 nTime);
+//void delay_us(__IO u32 nTime);
 void delay_ms(__IO u32 nTime);
 
 #endif

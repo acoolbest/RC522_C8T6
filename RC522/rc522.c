@@ -483,12 +483,22 @@ void CalulateCRC(uint8_t *pIndata,uint8_t len,uint8_t *pOutData)
 /////////////////////////////////////////////////////////////////////
 char PcdReset(void)
 {
+	#if 1
+	RC522_RESET_SET();		//RST522_1;
+	delay_ms(10);			//_NOP();
+	RC522_RESET_RESET();	//RST522_0;
+	delay_ms(1000);			//_NOP();
+	RC522_RESET_SET();		//RST522_1;
+	delay_ms(500);			//_NOP();
+	#else
 	RC522_RESET_SET();		//RST522_1;
 	delay_us(10);			//_NOP();
 	RC522_RESET_RESET();	//RST522_0;
 	delay_ms(60);			//_NOP();
 	RC522_RESET_SET();		//RST522_1;
 	delay_us(500);			//_NOP();
+	#endif
+	
 	WriteRawRC(CommandReg,PCD_RESETPHASE);
 	delay_ms(2);			//_NOP();
 
@@ -821,7 +831,7 @@ uint8_t RC522_RW(uint8_t type, uint8_t * data)
 					if(type == RC522_WRITE_TYPE)
 					{
 						if(PcdWrite(5,data) != MI_OK) return MI_ERR;
-						delay_us(8);
+						delay_ms(8);//delay_us(8);
 					}
 					
 					if(PcdRead(5,data) == MI_OK)
@@ -906,7 +916,7 @@ void RC522_test(void)
 					continue;
 			}
 			memset(Card_Data,0,16);
-			delay_us(8);
+			delay_ms(8);//delay_us(8);
 			
 			status = PcdRead(5,Card_Data);                    //再一次把它读取出来16字节的卡片数据
 			if(status != MI_OK){
@@ -921,13 +931,13 @@ void RC522_test(void)
 			
 			memset(Card_Data,2,16);
 			Card_Data[0]=0xbb;
-			delay_us(8);
+			delay_ms(8);//delay_us(8);
 			status = PcdWrite(5,Card_Data);                   //写入0Xbb,0X02,0X02……
 			if(status != MI_OK){
 					printf("Card Write Error\n\r");
 					continue;
 			}
-			delay_us(8);
+			delay_ms(8);//delay_us(8);
 			
 			status = PcdRead(5,Card_Data);                    //再一次把它读取出来16字节的卡片数据
 			if(status != MI_OK){
