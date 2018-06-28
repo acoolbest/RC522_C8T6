@@ -69,7 +69,7 @@ void USART3_IRQHandler(void)                	//串口3中断服务程序
 	USART_ClearFlag(USART3,USART_FLAG_TC);
 	if(USART_GetITStatus(USART3,USART_IT_RXNE)!=RESET)//检查指定的USART 中断发生与否 
 	{
-		LED0 = 0;
+		//LED0 = 0;
 		Res=USART_ReceiveData(USART3);
 		delay_ms(1);
 		USART_SendData(USART3,Res);
@@ -96,7 +96,7 @@ void USART3_IRQHandler(void)                	//串口3中断服务程序
 	u8 Res;
 	if(USART_GetITStatus(USART3, USART_IT_RXNE) != RESET)  //接收中断(接收到的数据必须是0x0d 0x0a结尾)
 	{
-		LED0 = 0;
+		//LED0 = 0;
 		Res =USART_ReceiveData(USART3);//(USART3->DR);	//读取接收到的数据
 
 		if((USART3_RX_STA&0x8000)==0)//接收未完成

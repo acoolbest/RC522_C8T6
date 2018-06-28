@@ -4,6 +4,10 @@
 #include "stm32f10x.h"
 #include "sys.h"
 
+#define SIM800C_BOARD
+#define RC522_BOARD
+
+
 extern u32 time_sys;
 extern u32 time_uart1;
 extern u32 time_lock;

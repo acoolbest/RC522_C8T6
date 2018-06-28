@@ -29,7 +29,7 @@ u8 USART_RX_BUF[USART_REC_LEN];     //接收缓冲,最大USART_REC_LEN个字节.
 //bit13~0，	接收到的有效字节数目
 u16 USART_RX_STA=0;       //接收状态标记	  
 
-uint8_t g_slave_addr = 0;//485从机地址
+uint8_t g_rs485_addr = 0;//485本机地址
 uint8_t g_rfid_state = RFID_PULL_OUT;
 uint8_t g_lock_state = LOCK_STATE_OFF;
 uint8_t g_rfid_id[8] = {0};
@@ -128,7 +128,7 @@ void process_com_data(struct cmd_recv_stru *p_cmd_recv_stru, u8 u8_recv)
 		}
 		case ENUM_COM_MSG_DST_ADDR:
 		{
-			if(u8_recv == COM_BROADCAST_ADDR || u8_recv == g_slave_addr || g_slave_addr == 0)
+			if(u8_recv == COM_BROADCAST_ADDR || u8_recv == g_rs485_addr || g_rs485_addr == 0)
 				update_cmd_recv(p_cmd_recv_stru, u8_recv);
 			else 
 				is_com_msg_head(p_cmd_recv_stru, u8_recv);
@@ -213,7 +213,7 @@ void deal_cmd_data(struct cmd_recv_stru *p_cmd_recv_stru)
 		{
 			*p = SEND_COM_MSG_HEAD;
 			*(p += 2) = recv_data[3];
-			*(++p) = g_slave_addr;
+			*(++p) = g_rs485_addr;
 			*(++p) = recv_data[4];
 			switch(recv_data[4])
 			{
@@ -315,13 +315,13 @@ void uart_init(u32 bound){
 void USART1_IRQHandler(void)                	//串口1中断服务程序
 {
 	u8 res;
-	if (time_sys - time_uart1 >= 100)
+	if (time_sys - time_uart1 >= 100) //超时100ms则丢弃当前数据
 		g_stru_cmd_recv.cmd_state = ENUM_COM_MSG_HEAD;
 	time_uart1 = time_sys;
 	
-	if(USART_GetITStatus(USART1, USART_IT_RXNE) != RESET)  
+	if(USART_GetITStatus(USART1, USART_IT_RXNE) != RESET)
 	{
-		LED0 = 0;
+		//LED0 = 0;
 		res =USART_ReceiveData(USART1);//(USART1->DR);	//读取接收到的数据
 		process_com_data(&g_stru_cmd_recv, res);
 		USART_ClearITPendingBit(USART1, USART_IT_RXNE);
@@ -406,6 +406,11 @@ static void get_chipID(uint8_t * chipID)
 
 static void init_RS485_addr(uint8_t * rs485_addr)
 {
+	#ifdef SIM800C_BOARD
+	*rs485_addr = 0xF0;
+	#endif
+
+	#ifdef RC522_BOARD //读取拨码开关的值
 	GPIO_InitTypeDef GPIO_InitStruct;
 	
 	RCC_APB2PeriphClockCmd(RCC_APB2Periph_GPIOB,ENABLE);
@@ -420,11 +425,12 @@ static void init_RS485_addr(uint8_t * rs485_addr)
 	GPIO_Init(GPIOB, &GPIO_InitStruct);
 
 	*rs485_addr = (RS485_ADDR_HBIT<<1 + RS485_ADDR_LBIT);
+	#endif
 }
 
 void RS485_init(u32 bound){
-	get_chipID(g_chipID);
-	init_RS485_addr(&g_slave_addr);
+	//get_chipID(g_chipID);
+	init_RS485_addr(&g_rs485_addr);
 	uart_init(bound);//串口1初始化
 }
 

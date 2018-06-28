@@ -893,7 +893,7 @@ void sim800c_tcpudp_test(u8 mode, const u8* ipaddr, const u8* port)
 
 		if((timex%20)==0)
 		{
-			LED0=!LED0;
+			//LED0=!LED0;
 			count++;	
 			if(connectsta==2||hbeaterrcnt>8)//连接中断了,或者连续8次心跳没有正确发送成功,则重新连接
 			{
@@ -1066,7 +1066,7 @@ u8 sim800c_gprs_test(void)
 		if(timex==20)
 		{
 			timex=0;
-			LED0=!LED0;
+			//LED0=!LED0;
 		}
 		delay_ms(10);
 		sim_at_response(1);//检查GSM模块发送过来的数据,及时上传给电脑
@@ -1656,12 +1656,31 @@ void sim800c_test(void)
 			if(sim800c_gsminfo_show(40,225)==0)sim_ready=1;
 			else sim_ready=0;
 		}	
-		if((timex%20)==0)LED0=!LED0;//200ms闪烁 
+		//if((timex%20)==0)LED0=!LED0;//200ms闪烁 
 		timex++;
 		#endif
 	} 	
 }
 #endif
+
+void sim800c_reset(void)
+{
+	//1秒高电平，然后低电平
+	POWKEY = 1;
+	delay_ms(1000);
+	POWKEY = 0;
+}
+
+void sim800c_init(void)
+{
+	GPIO_InitTypeDef  GPIO_InitStructure;
+	RCC_APB2PeriphClockCmd(RCC_APB2Periph_GPIOB, ENABLE);	 //使能PC端口时钟
+	GPIO_InitStructure.GPIO_Pin = GPIO_Pin_11;				 //POWKEY-->PB.11 端口配置
+	GPIO_InitStructure.GPIO_Mode = GPIO_Mode_Out_PP; 		 //推挽输出
+	GPIO_InitStructure.GPIO_Speed = GPIO_Speed_50MHz;		 //IO口速度为50MHz
+	GPIO_Init(GPIOB, &GPIO_InitStructure);					 //根据设定参数初始化GPIOB.11
+	sim800c_reset();
+}
 
 
 

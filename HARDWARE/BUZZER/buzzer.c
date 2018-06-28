@@ -42,8 +42,8 @@ const tNote MyScore1[]=
   {M3,TT/8},{M5,TT/8},{M6,TT/4}, //恭喜你发财。。。礼多人不怪
   {0,0},
 };
-
 #endif
+
 #if 0
 
 // 定义乐曲：《荷塘月色》
@@ -179,20 +179,6 @@ void musicPlay(const tNote * MyScore)
 		delay_ms(10);// 10 ms 
 	} 
 }
-#if 0
-int main(void) 
-{ 
-	delay_init();	    	 //延时函数初始化	  
-	NVIC_Configuration(); 	 //设置NVIC中断分组2:2位抢占优先级，2位响应优先级
-	TIM3_PWM_Init(14399,10);	 //分频。PWM频率=72000/14400/11（Khz）
-	for (;;) 
-	{
-		musicPlay(MyScore3);
-		delay_ms(1500);
-		delay_ms(1500);
-	} 
-}
-#endif
 
 void buzzer_init(void)
 {
@@ -213,4 +199,22 @@ void buzzer_play(uint8_t type)
 			break;
 	}
 }
+
+#if 0
+int main(void) 
+{ 
+	delay_init();	    	 //延时函数初始化	  
+	NVIC_Configuration(); 	 //设置NVIC中断分组2:2位抢占优先级，2位响应优先级
+	TIM3_PWM_Init(14399,10);	 //分频。PWM频率=72000/14400/11（Khz）
+	for (;;) 
+	{
+		musicPlay(MyScore3);
+		delay_ms(3000);
+		buzzer_play(BUZZER_PLAY_UNLOCK);
+		delay_ms(1000);
+		buzzer_play(BUZZER_PLAY_LOCK);
+		delay_ms(3000);
+	} 
+}
+#endif
 

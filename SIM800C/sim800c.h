@@ -17,7 +17,8 @@
 //////////////////////////////////////////////////////////////////////////////////	
 
 #define swap16(x) (x&0XFF)<<8|(x&0XFF00)>>8	//高低字节交换宏定义
- 
+#define POWKEY PBout(11)	// PB11
+
 extern u8 Scan_Wtime;
 
 void sim_send_sms(u8*phonenumber,u8*msg);
@@ -45,6 +46,8 @@ void sim800c_mtest_ui(u16 x,u16 y);	 //SIM800C GSM/GPRS主测试UI
 u8 sim800c_gsminfo_show(u16 x,u16 y);//显示GSM模块信息
 void ntp_update(void);               //网络同步时间
 void sim800c_test(void);			 //SIM800C主测试函数
+void sim800c_reset(void);
+void sim800c_init(void);
 #endif
 
 
