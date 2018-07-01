@@ -29,8 +29,16 @@ extern u16 USART_RX_STA;         		//接收状态标记
 #define RS485_ADDR_HBIT  GPIO_ReadInputDataBit(GPIOB,GPIO_Pin_12)
 #define RS485_ADDR_LBIT  GPIO_ReadInputDataBit(GPIOB,GPIO_Pin_13)
 
+#ifdef SIM800C_BOARD
+#define			RECV_COM_MSG_HEAD					0x68
+#define			SEND_COM_MSG_HEAD					0x67
+#endif
+
+#ifdef RC522_BOARD
 #define			RECV_COM_MSG_HEAD					0x67
 #define			SEND_COM_MSG_HEAD					0x68
+#endif
+
 #define			DEFAULT_COM_MSG_TAIL				0x99
 
 #define			COM_MASTER_ADDR						0xF0
@@ -49,6 +57,11 @@ extern u16 USART_RX_STA;         		//接收状态标记
 
 #define			LOCK_STATE_OFF						0x00
 #define			LOCK_STATE_ON						0x01
+
+#define			UNLOCK_STATE_RFID_ERR				0x01 //RFID编号不匹配
+#define			UNLOCK_STATE_RFID_PULL_OUT			0x02 //RFID借出状态
+#define			UNLOCK_STATE_ERR					0x03 //开锁失败
+#define			UNLOCK_STATE_ONGOING				0xFF //开锁进行中
 
 struct cmd_recv_stru
 {
@@ -94,6 +107,7 @@ void RS485SendNByte(uint8_t *send_buf, uint16_t send_len);
 
 void RS485_init(u32 bound);
 void time_out_relay_lock(void);
+void usart_process(void);
 
 #endif
 

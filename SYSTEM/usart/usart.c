@@ -36,6 +36,8 @@ uint8_t g_rfid_id[8] = {0};
 uint8_t g_chipID[12] = {0};
 struct cmd_recv_stru g_stru_cmd_recv = {0};
 
+#define UNDEFINED_SLAVE_ADDR	0xFF
+
 //////////////////////////////////////////////////////////////////
 //加入以下代码,支持printf函数,而不需要选择use MicroLIB	  
 #if 1
@@ -128,7 +130,14 @@ void process_com_data(struct cmd_recv_stru *p_cmd_recv_stru, u8 u8_recv)
 		}
 		case ENUM_COM_MSG_DST_ADDR:
 		{
-			if(u8_recv == COM_BROADCAST_ADDR || u8_recv == g_rs485_addr || g_rs485_addr == 0)
+			#ifdef SIM800C_BOARD
+			if(u8_recv == g_rs485_addr)
+			#endif
+			
+			#ifdef RC522_BOARD
+			if(u8_recv == COM_BROADCAST_ADDR || u8_recv == g_rs485_addr)
+			#endif
+			
 				update_cmd_recv(p_cmd_recv_stru, u8_recv);
 			else 
 				is_com_msg_head(p_cmd_recv_stru, u8_recv);
@@ -136,10 +145,15 @@ void process_com_data(struct cmd_recv_stru *p_cmd_recv_stru, u8 u8_recv)
 		}
 		case ENUM_COM_MSG_SRC_ADDR:
 		{
+			#ifdef SIM800C_BOARD
+			if(u8_recv <= COM_MAX_SLAVE_ADDR)
+			#endif
+			
+			#ifdef RC522_BOARD
 			if(u8_recv == COM_MASTER_ADDR)
-			{
+			#endif
+			
 				update_cmd_recv(p_cmd_recv_stru, u8_recv);
-			}
 			else 
 				is_com_msg_head(p_cmd_recv_stru, u8_recv);
 			break;
@@ -164,105 +178,6 @@ void process_com_data(struct cmd_recv_stru *p_cmd_recv_stru, u8 u8_recv)
 				is_com_msg_head(p_cmd_recv_stru, u8_recv);
 			break;
 		}
-	}
-}
-
-uint8_t get_checksum(uint8_t * p_frame, uint16_t frame_len)
-{
-	uint8_t sum = 0;
-	uint16_t i = 0;
-	
-	if(p_frame == NULL || frame_len == 0)
-		return 0;
-
-	for (i = 1; i < frame_len - 2; i++) sum += p_frame[i];
-	return sum;
-}
-
-void rfid_ctrl_lock(uint8_t ctrl_type)
-{
-	if(ctrl_type == LOCK_STATE_ON) relay_on();
-	else relay_off();
-
-	g_lock_state = ctrl_type;
-	time_lock = ctrl_type;//开启5s定时器
-}
-
-void time_out_relay_lock(void)
-{
-	if(time_lock >= 50000000)//5s
-	{
-		rfid_ctrl_lock(LOCK_STATE_OFF);
-		rc522_req_type = RC522_REQ_ALL;//关锁后重新读取RFID卡信息
-	}
-}
-
-void deal_cmd_data(struct cmd_recv_stru *p_cmd_recv_stru)
-{
-	if(p_cmd_recv_stru->cmd_recv_state == COM_CMD_RECV_COMPLETE)
-	{
-		u8 send_buf[MAX_SERIAL_BUFFER_LENGHT] = {0};
-		u8 *p = send_buf;
-		u8 send_flag = 1;
-		u16 recv_len = p_cmd_recv_stru->cmd_length;
-		u8 recv_data[MAX_SERIAL_BUFFER_LENGHT] = {0};
-		memcpy(recv_data, p_cmd_recv_stru->cmd_buffer, recv_len);
-		if((recv_data[0] == RECV_COM_MSG_HEAD)
-			&& (recv_data[recv_len-1] == DEFAULT_COM_MSG_TAIL)
-			&& (recv_data[recv_len-2] == get_checksum(recv_data, recv_len)))
-		{
-			*p = SEND_COM_MSG_HEAD;
-			*(p += 2) = recv_data[3];
-			*(++p) = g_rs485_addr;
-			*(++p) = recv_data[4];
-			switch(recv_data[4])
-			{
-				case COM_CMD_GET_SLAVE_ADDR://获取从机地址
-					break;
-				case COM_CMD_GET_SLAVE_RFID://获取从机RFID
-					*(++p) = g_rfid_state == RFID_PULL_OUT ? 0x00:0x01;
-					if(*p)
-					{
-						memcpy(p+1,g_rfid_id,8);
-						p += 8;
-					}
-					break;
-				case COM_CMD_CTRL_SLAVE_UNLOCK://控制从机开锁
-				//XX(确认字)
-					if(memcmp(&recv_data[5], g_rfid_id, 8))
-						*(++p) = 0x01;//RFID编号不匹配
-					else
-					{
-						if(g_rfid_state == RFID_PULL_OUT)
-							*(++p) = 0x02;//RFID借出状态
-						else
-						{
-							rfid_ctrl_lock(LOCK_STATE_ON);
-							*(++p) = 0xFF;//RFID开锁进行中
-						}
-					}
-					break;
-				case COM_CMD_GET_NEW_RFID_INFO://获取RFID归还信息
-				//XX(设备状态)  u64(64位RFID号)
-					*(++p) = g_rfid_state == RFID_INSERT ? 0x01:0x00;
-					if(*p)
-					{
-						memcpy(p+1,g_rfid_id,8);
-						p += 8;
-					}
-					break;
-				default:
-					send_flag = 0;
-					break;		
-			}
-			if(send_flag){
-				*(p += 2) = DEFAULT_COM_MSG_TAIL;
-				send_buf[1] = (p - send_buf + 1);
-				*(p - 1) = get_checksum(send_buf, send_buf[1]);
-				RS485SendNByte(send_buf,send_buf[1]);
-			}
-		}
-		p_cmd_recv_stru->cmd_recv_state = COM_CMD_RECV_INCOMPLETE;
 	}
 }
 
@@ -381,32 +296,14 @@ void USART1SendString(u8 *cmd,u16 len)
 }
 
 //////////////////////////////////////////////////////////////////////////////////
-static void get_chipID(uint8_t * chipID)
-{
-	u32 temp0,temp1,temp2;
-	temp0 = *(__IO u32*)(0x1FFFF7E8);    //产品唯一身份标识寄存器（96位）
-	temp1 = *(__IO u32*)(0x1FFFF7EC);
-	temp2 = *(__IO u32*)(0x1FFFF7F0);
-                                  
-//ID码地址：0x1FFFF7E8 0x1FFFF7EC 0x1FFFF7F0，只需要读取这个地址中的数据就可以了。
-
-    chipID[0] = (u8)(temp0 & 0x000000FF);
-    chipID[1] = (u8)((temp0 & 0x0000FF00)>>8);
-    chipID[2] = (u8)((temp0 & 0x00FF0000)>>16);
-    chipID[3] = (u8)((temp0 & 0xFF000000)>>24);
-    chipID[4] = (u8)(temp1 & 0x000000FF);
-    chipID[5] = (u8)((temp1 & 0x0000FF00)>>8);
-    chipID[6] = (u8)((temp1 & 0x00FF0000)>>16);
-    chipID[7] = (u8)((temp1 & 0xFF000000)>>24);
-    chipID[8] = (u8)(temp2 & 0x000000FF);
-    chipID[9] = (u8)((temp2 & 0x0000FF00)>>8);
-    chipID[10] = (u8)((temp2 & 0x00FF0000)>>16);
-    chipID[11] = (u8)((temp2 & 0xFF000000)>>24);
-}
-
 static void init_RS485_addr(uint8_t * rs485_addr)
 {
 	#ifdef SIM800C_BOARD
+	u8 i = 0;
+	for(i=0;i<=COM_MAX_SLAVE_ADDR;i++)
+	{
+		g_slave_device_info[i].addr = UNDEFINED_SLAVE_ADDR;
+	}
 	*rs485_addr = 0xF0;
 	#endif
 
@@ -429,8 +326,7 @@ static void init_RS485_addr(uint8_t * rs485_addr)
 }
 
 void RS485_init(u32 bound){
-	//get_chipID(g_chipID);
+	//get_chipID(g_chipID);	
 	init_RS485_addr(&g_rs485_addr);
 	uart_init(bound);//串口1初始化
 }
-

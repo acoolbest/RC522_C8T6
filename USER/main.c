@@ -42,5 +42,6 @@ int main(void)
 		RC522_RW(RC522_READ_TYPE, RC522_buffer);
 		RC522_RW(RC522_WRITE_TYPE, RC522_buffer);
 		#endif
+		usart_process();
 	}
 }

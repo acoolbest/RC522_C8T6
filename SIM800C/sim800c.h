@@ -18,6 +18,7 @@
 
 #define swap16(x) (x&0XFF)<<8|(x&0XFF00)>>8	//高低字节交换宏定义
 #define POWKEY PBout(11)	// PB11
+#define MAX_SIM800C_BUFFER_LENGHT 200
 
 extern u8 Scan_Wtime;
 
@@ -48,9 +49,23 @@ void ntp_update(void);               //网络同步时间
 void sim800c_test(void);			 //SIM800C主测试函数
 void sim800c_reset(void);
 void sim800c_init(void);
+
+#define SIM800C_CMD_UNLOCK					0x0101
+#define SIM800C_CMD_REPROT_DEVICE_INFO		0x0102
+#define SIM800C_CMD_HEARTBEAT				0x0103
+
+
+struct sim_recv_stru
+{
+	u16 function_code;
+	u16 data_len;
+	u16 msg_id;
+	u16 terminal_len;
+	u8 terminal_id[20];
+	u16 rfid_len;
+	u8 rfid[20];
+	u8 port_number;
+	u8 result_code;
+};
+
 #endif
-
-
-
-
-
