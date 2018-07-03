@@ -81,6 +81,11 @@ void SysTick_Handler(void)
 {
 	TimingDelay_Decrement();
 	time_sys++;
+	
+	if(rs485_broadcast_timeout) rs485_broadcast_timeout--;
+	
+	if(rs485_read_timeout) rs485_read_timeout--;
+
 	if(time_lock) time_lock++;
 	//LED0 = 1;
 }

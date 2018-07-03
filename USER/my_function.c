@@ -4,6 +4,9 @@
 //*******************************************
 #include "my_function.h"
 
+struct slave_addr g_slave_addr[COM_MAX_SLAVE_ADDR+1] = {0};
+
+
 void rfid_ctrl_lock(uint8_t ctrl_type)
 {
 	if(ctrl_type == LOCK_STATE_ON) relay_on();
@@ -174,7 +177,8 @@ void deal_cmd_data(struct cmd_recv_stru *p_cmd_recv_stru)
 }
 #endif
 
-void usart_get_slave_addr(void)// one time per 5min
+//初始化后每5分钟广播一次
+void usart_get_slave_addr(void)
 {
 	static u32 time_5min = 0;
 	u8 i = 0;
@@ -183,23 +187,35 @@ void usart_get_slave_addr(void)// one time per 5min
 	{
 		time_5min = time_sys;
 		send_buf[sizeof(send_buf)-2] = get_checksum(send_buf, send_buf[1]);
-		RS485SendNByte(send_buf,send_buf[1]);
+		rs485_send_cmd(send_buf,send_buf[1]);
 	}
 }
 
+//初始化后有新的从地址时、或需要判断其是否开锁成功时，设置标志位，按需发送
 void usart_get_slave_rfid(void)
 {
-
+	u8 i = 0;
+	
 }
 
+//sim800c收到开锁指令后，设置对应标志位，按需发送
 void usart_ctrl_slave_unlock(void)
 {
 
 }
 
+//每2秒种发送一次，得知新归还的设备
 void usart_get_new_rfid_info(void)
 {
-
+	static u32 time_2s= 0;
+	u8 i = 0;
+	static u8 send_buf[0x07] = {0x67,0x07,0xFF,0xF0,0x51,0x00,0x99};
+	if(time_2s == 0 || time_sys-time_2s >= 2*1000)
+	{
+		time_2s = time_sys;
+		send_buf[sizeof(send_buf)-2] = get_checksum(send_buf, send_buf[1]);
+		RS485SendNByte(send_buf,send_buf[1]);
+	}
 }
 
 void usart_process(void)
@@ -226,4 +242,111 @@ u8 sim800c_hex2chr(u8 hex)
 	if(hex>=10&&hex<=15)return (hex-10+'A'); 
 	return '0';
 }
+
+u8 rs485_read_data(u8 *recv_data)
+{
+	struct cmd_recv_stru *p_cmd_recv_stru = &g_stru_cmd_recv;
+	rs485_read_timeout = 200;//200ms
+	u16 recv_len = 0;
+	do
+	{
+		if(p_cmd_recv_stru->cmd_recv_state == COM_CMD_RECV_COMPLETE)
+		{
+			recv_len = p_cmd_recv_stru->cmd_length;
+			memcpy(recv_data, p_cmd_recv_stru->cmd_buffer, recv_len);
+			if((recv_data[0] == RECV_COM_MSG_HEAD)
+				&& (recv_data[recv_len-1] == DEFAULT_COM_MSG_TAIL)
+				&& (recv_data[recv_len-2] == get_checksum(recv_data, recv_len)))
+			{
+				return RET_SUCCESS;
+			}
+			p_cmd_recv_stru->cmd_recv_state = COM_CMD_RECV_INCOMPLETE;
+		}
+		else delay_ms(1);
+	}while (rs485_read_timeout);
+	return RET_FAIL;
+}
+
+void update_slave_addr(u8 slave_addr)
+{
+	if(g_slave_device_info.addr_state == SLAVE_ADDR_UNDEFINED)
+	{
+		g_slave_device_info.addr = slave_addr;
+		g_slave_device_info.addr_state = SLAVE_ADDR_NEW;
+	}
+	else if(!slave_addr || g_slave_device_info.addr != slave_addr)
+	{
+		g_slave_device_info.addr = slave_addr;
+		g_slave_device_info.addr_state = SLAVE_ADDR_NEW;
+	}
+}
+
+void update_rfid_info(u8 state, u8 *rfid_id)
+{
+
+}
+
+void deal_unlock_state(u8 state)
+{
+
+}
+
+void update_back_info(u8 state, u8 *rfid_id)
+{
+
+}
+
+/*
+ *失败重试3次，广播总超时2s，其他命令超时200ms
+*/
+u8 rs485_send_cmd(u8 *cmd, u16 len)
+{
+	u8 recv_data[MAX_SERIAL_BUFFER_LENGHT] = {0};
+	u8 count = 0;
+	u8 ret = RET_FAIL;
+	for(count=0;count<3;count++)
+	{
+		RS485SendNByte(cmd, len);
+		if(cmd[4] == COM_CMD_GET_SLAVE_ADDR)
+		{
+			rs485_broadcast_timeout = 2000;
+			do
+			{
+				if(rs485_read_data(recv_data) == RET_SUCCESS
+					&& recv_data[4] == cmd[4])
+				{
+					update_slave_addr(recv_data[3]);
+					ret = RET_SUCCESS;
+				}
+			}while(rs485_broadcast_timeout);
+		}
+		else
+		{
+			if(rs485_read_data(recv_data) == RET_SUCCESS
+				&& recv_data[4] == cmd[4]
+				&& recv_data[3] == cmd[2])
+			{
+				ret = RET_SUCCESS;
+				switch(recv_data[3])
+				{
+					case COM_CMD_GET_SLAVE_RFID:
+						update_rfid_info(recv_data[5], &recv_data[6]);
+						break;
+					case COM_CMD_CTRL_SLAVE_UNLOCK:
+						deal_unlock_state(recv_data[5]);
+						break;
+					case COM_CMD_GET_NEW_RFID_INFO:
+						update_back_info(recv_data[5], &recv_data[6]);
+						break;
+					default:
+						ret = RET_FAIL;
+						break;
+				}
+			}
+		}
+		if(ret == RET_SUCCESS) break;
+	}
+	return ret;
+}
+
 

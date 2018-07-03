@@ -36,8 +36,6 @@ uint8_t g_rfid_id[8] = {0};
 uint8_t g_chipID[12] = {0};
 struct cmd_recv_stru g_stru_cmd_recv = {0};
 
-#define UNDEFINED_SLAVE_ADDR	0xFF
-
 //////////////////////////////////////////////////////////////////
 //加入以下代码,支持printf函数,而不需要选择use MicroLIB	  
 #if 1
@@ -300,10 +298,6 @@ static void init_RS485_addr(uint8_t * rs485_addr)
 {
 	#ifdef SIM800C_BOARD
 	u8 i = 0;
-	for(i=0;i<=COM_MAX_SLAVE_ADDR;i++)
-	{
-		g_slave_device_info[i].addr = UNDEFINED_SLAVE_ADDR;
-	}
 	*rs485_addr = 0xF0;
 	#endif
 

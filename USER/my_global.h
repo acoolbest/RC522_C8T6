@@ -7,6 +7,10 @@
 extern u32 time_sys;
 extern u32 time_uart1;
 extern u32 time_lock;
+extern u32 rs485_broadcast_timeout;
+extern u32 rs485_read_timeout = 0;
+
+
 
 #define			RC522_REQ_IDL           0x26               //寻天线区内未进入休眠状态
 #define 		RC522_REQ_ALL           0x52               //寻天线区内全部卡
@@ -14,6 +18,7 @@ extern u8 rc522_req_type;
 
 struct slave_device_info{
 	u8 addr;
+	u8 addr_state;
 	u8 rfid_state;
 	u8 unlock_state;
 	u8 rfid_id[8];
