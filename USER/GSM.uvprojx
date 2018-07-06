@@ -397,6 +397,11 @@
               <FileType>1</FileType>
               <FilePath>.\my_global.c</FilePath>
             </File>
+            <File>
+              <FileName>my_function.c</FileName>
+              <FileType>1</FileType>
+              <FilePath>.\my_function.c</FilePath>
+            </File>
           </Files>
         </Group>
         <Group>

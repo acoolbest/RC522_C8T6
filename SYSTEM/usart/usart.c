@@ -30,8 +30,8 @@ u8 USART_RX_BUF[USART_REC_LEN];     //接收缓冲,最大USART_REC_LEN个字节.
 u16 USART_RX_STA=0;       //接收状态标记	  
 
 uint8_t g_rs485_addr = 0;//485本机地址
-uint8_t g_rfid_state = RFID_PULL_OUT;
-uint8_t g_lock_state = LOCK_STATE_OFF;
+//uint8_t g_rfid_state = RFID_PULL_OUT;
+//uint8_t g_lock_state = LOCK_STATE_OFF;
 uint8_t g_rfid_id[8] = {0};
 uint8_t g_chipID[12] = {0};
 struct cmd_recv_stru g_stru_cmd_recv = {0};
@@ -297,7 +297,6 @@ void USART1SendString(u8 *cmd,u16 len)
 static void init_RS485_addr(uint8_t * rs485_addr)
 {
 	#ifdef SIM800C_BOARD
-	u8 i = 0;
 	*rs485_addr = 0xF0;
 	#endif
 

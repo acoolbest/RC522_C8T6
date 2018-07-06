@@ -2,11 +2,13 @@
 //dwgl for stm32f1XX
 //V1.1 20160401
 //*******************************************
+#include <string.h>
+#include "my_global.h"
+#include "delay.h"
+#include "usart.h"
 #include "my_function.h"
 
-struct slave_addr g_slave_addr[COM_MAX_SLAVE_ADDR+1] = {0};
-
-
+#ifdef RC522_BOARD
 void rfid_ctrl_lock(uint8_t ctrl_type)
 {
 	if(ctrl_type == LOCK_STATE_ON) relay_on();
@@ -24,7 +26,7 @@ void time_out_relay_lock(void)
 		rc522_req_type = RC522_REQ_ALL;//关锁后重新读取RFID卡信息
 	}
 }
-
+#endif
 uint8_t get_checksum(uint8_t * p_frame, uint16_t frame_len)
 {
 	uint8_t sum = 0;
@@ -181,7 +183,6 @@ void deal_cmd_data(struct cmd_recv_stru *p_cmd_recv_stru)
 void usart_get_slave_addr(void)
 {
 	static u32 time_5min = 0;
-	u8 i = 0;
 	static u8 send_buf[0x07] = {0x67,0x07,0xFF,0xF0,0x51,0x00,0x99};
 	if(time_5min == 0 || time_sys-time_5min >= 5*60*1000)
 	{
@@ -191,17 +192,89 @@ void usart_get_slave_addr(void)
 	}
 }
 
+void unlock_timeout_increase(void)
+{
+	u8 i = 0;
+	for(i=0;i<=COM_MAX_SLAVE_ADDR;i++)
+	{
+		if(g_slave_device_info[i].unlock_timeout)
+			g_slave_device_info[i].unlock_timeout++;
+	}
+}
+
 //初始化后有新的从地址时、或需要判断其是否开锁成功时，设置标志位，按需发送
 void usart_get_slave_rfid(void)
 {
 	u8 i = 0;
+	static u8 send_buf[0x07] = {0x67,0x07,0x00,0xF0,0x53,0x00,0x99};
+	for(i=0;i<=COM_MAX_SLAVE_ADDR;i++)
+	{
+		if(g_slave_device_info[i].addr_state == SLAVE_ADDR_UNDEFINED)
+			continue;
+		
+		if(g_slave_device_info[i].unlock_state == UNLOCK_STATE_ONGOING)
+		{			
+			if(g_slave_device_info[i].unlock_timeout >= 5000)
+			{
+				send_buf[2] = i;
+				send_buf[sizeof(send_buf)-2] = get_checksum(send_buf, send_buf[1]);
+				if(rs485_send_cmd(send_buf,send_buf[1]) == RET_SUCCESS
+					&& g_slave_device_info[i].rfid_state == RFID_PULL_OUT)
+				{
+					g_slave_device_info[i].unlock_state = UNLOCK_STATE_OK;
+				}
+				else
+				{
+					g_slave_device_info[i].unlock_state = UNLOCK_STATE_ERR;
+				}
+				g_slave_device_info[i].unlock_timeout = 0;
+			}
+		}
+		else if(g_slave_device_info[i].addr_state == SLAVE_ADDR_NEW)
+		{
+			send_buf[2] = i;
+			send_buf[sizeof(send_buf)-2] = get_checksum(send_buf, send_buf[1]);
+			if(rs485_send_cmd(send_buf,send_buf[1]) == RET_SUCCESS)
+				update_slave_addr(i, SLAVE_ADDR_NORMAL);
+		}
+			
+	}
 	
 }
 
-//sim800c收到开锁指令后，设置对应标志位，按需发送
-void usart_ctrl_slave_unlock(void)
+void sim800c_post_unlock_result(void)
 {
+	u8 i = 0;
+	for(i=0;i<=COM_MAX_SLAVE_ADDR;i++)
+	{
+		if(g_slave_device_info[i].unlock_state != UNLOCK_STATE_RFID_UNDEFINE
+			&& !g_slave_device_info[i].unlock_timeout)
+		{
+			//sim800c_send_cmd(send_buf,send_len);
+			g_slave_device_info[i].unlock_state = UNLOCK_STATE_RFID_UNDEFINE;
+		}
+	}
+}
 
+//sim800c收到开锁指令后，设置对应标志位，按需发送
+void usart_ctrl_slave_unlock(u8 addr, u8 * rfid_id)
+{
+	static u8 send_buf[0x0F] = {0x67,0x0F,0x00,0xF0,0x54};
+	if(addr <= COM_MAX_SLAVE_ADDR)
+	{
+		if(g_slave_device_info[addr].rfid_state != RFID_PULL_OUT
+			&& !memcmp(g_slave_device_info[addr].rfid_id, rfid_id, 8))
+		{
+			memcpy(&send_buf[5], g_slave_device_info[addr].rfid_id, 8);
+			send_buf[sizeof(send_buf)-1] = DEFAULT_COM_MSG_TAIL;
+			send_buf[sizeof(send_buf)-2] = get_checksum(send_buf, send_buf[1]);
+			rs485_send_cmd(send_buf,send_buf[1]);
+		}
+	}
+	if(g_slave_device_info[addr].unlock_state != UNLOCK_STATE_ONGOING)
+		g_slave_device_info[addr].unlock_timeout = 1;
+	else
+		g_slave_device_info[addr].unlock_state = UNLOCK_STATE_ERR;
 }
 
 //每2秒种发送一次，得知新归还的设备
@@ -209,12 +282,18 @@ void usart_get_new_rfid_info(void)
 {
 	static u32 time_2s= 0;
 	u8 i = 0;
-	static u8 send_buf[0x07] = {0x67,0x07,0xFF,0xF0,0x51,0x00,0x99};
+	static u8 send_buf[0x07] = {0x67,0x07,0x00,0xF0,0x51,0x00,0x99};
 	if(time_2s == 0 || time_sys-time_2s >= 2*1000)
 	{
 		time_2s = time_sys;
-		send_buf[sizeof(send_buf)-2] = get_checksum(send_buf, send_buf[1]);
-		RS485SendNByte(send_buf,send_buf[1]);
+		for(i=0;i<=COM_MAX_SLAVE_ADDR;i++)
+		{
+			if(g_slave_device_info[i].addr_state == SLAVE_ADDR_UNDEFINED)
+				continue;
+			send_buf[2] = i;
+			send_buf[sizeof(send_buf)-2] = get_checksum(send_buf, send_buf[1]);
+			rs485_send_cmd(send_buf,send_buf[1]);
+		}
 	}
 }
 
@@ -245,55 +324,84 @@ u8 sim800c_hex2chr(u8 hex)
 
 u8 rs485_read_data(u8 *recv_data)
 {
+	u16 recv_len = 0;
 	struct cmd_recv_stru *p_cmd_recv_stru = &g_stru_cmd_recv;
 	rs485_read_timeout = 200;//200ms
-	u16 recv_len = 0;
 	do
 	{
 		if(p_cmd_recv_stru->cmd_recv_state == COM_CMD_RECV_COMPLETE)
 		{
 			recv_len = p_cmd_recv_stru->cmd_length;
 			memcpy(recv_data, p_cmd_recv_stru->cmd_buffer, recv_len);
+			p_cmd_recv_stru->cmd_recv_state = COM_CMD_RECV_INCOMPLETE;
 			if((recv_data[0] == RECV_COM_MSG_HEAD)
 				&& (recv_data[recv_len-1] == DEFAULT_COM_MSG_TAIL)
 				&& (recv_data[recv_len-2] == get_checksum(recv_data, recv_len)))
-			{
+			{				
 				return RET_SUCCESS;
 			}
-			p_cmd_recv_stru->cmd_recv_state = COM_CMD_RECV_INCOMPLETE;
 		}
 		else delay_ms(1);
 	}while (rs485_read_timeout);
 	return RET_FAIL;
 }
 
-void update_slave_addr(u8 slave_addr)
-{
-	if(g_slave_device_info.addr_state == SLAVE_ADDR_UNDEFINED)
+void update_slave_addr(u8 addr, u8 addr_state)
+{	
+	u8 i = 0;
+	if(addr == COM_BROADCAST_ADDR)
 	{
-		g_slave_device_info.addr = slave_addr;
-		g_slave_device_info.addr_state = SLAVE_ADDR_NEW;
+		for(i=0;i<=COM_MAX_SLAVE_ADDR;i++)
+		{
+			g_slave_device_info[i].addr_state = addr_state;
+		}
+		return;
 	}
-	else if(!slave_addr || g_slave_device_info.addr != slave_addr)
+
+	if(addr_state == SLAVE_ADDR_NEW)
 	{
-		g_slave_device_info.addr = slave_addr;
-		g_slave_device_info.addr_state = SLAVE_ADDR_NEW;
+		if(g_slave_device_info[addr].addr_state == SLAVE_ADDR_UNDEFINED
+			|| g_slave_device_info[addr].addr_state == SLAVE_ADDR_INVAILD)
+		{
+			g_slave_device_info[addr].addr = addr;
+			g_slave_device_info[addr].addr_state = addr_state;
+		}
+	}
+	else
+	{
+		g_slave_device_info[addr].addr = addr;
+		g_slave_device_info[addr].addr_state = addr_state;
 	}
 }
 
-void update_rfid_info(u8 state, u8 *rfid_id)
+void update_rfid_info(u8 addr, u8 state, u8 *rfid_id)
 {
-
+	if(state)
+	{
+		if(g_slave_device_info[addr].rfid_state == RFID_PULL_OUT)
+		{
+			g_slave_device_info[addr].rfid_state = RFID_INSERT;
+		}
+		memcpy(g_slave_device_info[addr].rfid_id, rfid_id, 8);
+	}
+	else
+	{
+		g_slave_device_info[addr].rfid_state = RFID_PULL_OUT;
+	}
 }
 
-void deal_unlock_state(u8 state)
+void deal_unlock_state(u8 addr, u8 state)
 {
-
+	g_slave_device_info[addr].unlock_state = state;
 }
 
-void update_back_info(u8 state, u8 *rfid_id)
+void update_back_info(u8 addr, u8 state, u8 *rfid_id)
 {
-
+	if(state)
+	{
+		g_slave_device_info[addr].rfid_state = RFID_INSERT;
+		memcpy(g_slave_device_info[addr].rfid_id, rfid_id, 8);
+	}
 }
 
 /*
@@ -315,7 +423,7 @@ u8 rs485_send_cmd(u8 *cmd, u16 len)
 				if(rs485_read_data(recv_data) == RET_SUCCESS
 					&& recv_data[4] == cmd[4])
 				{
-					update_slave_addr(recv_data[3]);
+					update_slave_addr(recv_data[3], SLAVE_ADDR_NEW);
 					ret = RET_SUCCESS;
 				}
 			}while(rs485_broadcast_timeout);
@@ -330,13 +438,13 @@ u8 rs485_send_cmd(u8 *cmd, u16 len)
 				switch(recv_data[3])
 				{
 					case COM_CMD_GET_SLAVE_RFID:
-						update_rfid_info(recv_data[5], &recv_data[6]);
+						update_rfid_info(recv_data[3], recv_data[5], &recv_data[6]);
 						break;
 					case COM_CMD_CTRL_SLAVE_UNLOCK:
-						deal_unlock_state(recv_data[5]);
+						deal_unlock_state(recv_data[3], recv_data[5]);
 						break;
 					case COM_CMD_GET_NEW_RFID_INFO:
-						update_back_info(recv_data[5], &recv_data[6]);
+						update_back_info(recv_data[3], recv_data[5], &recv_data[6]);
 						break;
 					default:
 						ret = RET_FAIL;
@@ -344,7 +452,11 @@ u8 rs485_send_cmd(u8 *cmd, u16 len)
 				}
 			}
 		}
-		if(ret == RET_SUCCESS) break;
+		if(ret != RET_SUCCESS) break;
+	}
+	if(ret == RET_FAIL)
+	{
+		update_slave_addr(cmd[2], SLAVE_ADDR_INVAILD);
 	}
 	return ret;
 }

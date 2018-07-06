@@ -8,7 +8,7 @@ extern u32 time_sys;
 extern u32 time_uart1;
 extern u32 time_lock;
 extern u32 rs485_broadcast_timeout;
-extern u32 rs485_read_timeout = 0;
+extern u32 rs485_read_timeout;
 
 
 
@@ -21,6 +21,7 @@ struct slave_device_info{
 	u8 addr_state;
 	u8 rfid_state;
 	u8 unlock_state;
+	u32 unlock_timeout;
 	u8 rfid_id[8];
 };
 

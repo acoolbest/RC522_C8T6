@@ -24,9 +24,9 @@ void sim_at_response(u8 mode)
 		len = USART2_RX_STA&0X7FFF;
 		USART2_RX_BUF[len]=0;//Ìí¼Ó½áÊø·û
 		if(mode)USART2_RX_STA=0;
-		memcpy(recv_data, USART2_RX_BUF, len);
+		//memcpy(recv_data, USART2_RX_BUF, len);
 		
-		memcpy(g_stru_sim_recv.function_code, USART2_RX_BUF, 2);
+		memcpy(&g_stru_sim_recv.function_code, USART2_RX_BUF, 2);
 		switch(g_stru_sim_recv.function_code){
 			case SIM800C_CMD_UNLOCK:
 				break;

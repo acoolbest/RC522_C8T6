@@ -24,9 +24,9 @@
 /* Includes ------------------------------------------------------------------*/
 #include "stm32f10x_it.h" 
 #include "my_global.h"
+#include "my_function.h"
 
 extern void TimingDelay_Decrement(void);
-
  
 void NMI_Handler(void)
 {
@@ -87,6 +87,9 @@ void SysTick_Handler(void)
 	if(rs485_read_timeout) rs485_read_timeout--;
 
 	if(time_lock) time_lock++;
+	
+	unlock_timeout_increase();
+	
 	//LED0 = 1;
 }
 

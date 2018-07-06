@@ -31,7 +31,7 @@ int main(void)
 #ifdef SIM800C_BOARD
 #include "usart2.h"
 #include "sim800c.h"
-
+#include "my_function.h"
 void rs485_process(void)
 {
 	
@@ -41,7 +41,7 @@ void rs485_process(void)
 	usart_get_slave_rfid();
 
 	
-	usart_ctrl_slave_unlock();
+	//usart_ctrl_slave_unlock();
 
 	
 	usart_get_new_rfid_info();

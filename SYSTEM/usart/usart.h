@@ -55,14 +55,6 @@ extern u16 USART_RX_STA;         		//接收状态标记
 #define			COM_CMD_RECV_INCOMPLETE				0x00
 #define			COM_CMD_RECV_COMPLETE				0x01
 
-#define			LOCK_STATE_OFF						0x00
-#define			LOCK_STATE_ON						0x01
-
-#define			UNLOCK_STATE_RFID_ERR				0x01 //RFID编号不匹配
-#define			UNLOCK_STATE_RFID_PULL_OUT			0x02 //RFID借出状态
-#define			UNLOCK_STATE_ERR					0x03 //开锁失败
-#define			UNLOCK_STATE_ONGOING				0xFF //开锁进行中
-
 struct cmd_recv_stru
 {
 	u8 cmd_buffer[MAX_SERIAL_BUFFER_LENGHT];
@@ -71,6 +63,7 @@ struct cmd_recv_stru
 	u8 cmd_state;
 	u8 cmd_recv_state;
 };
+extern struct cmd_recv_stru g_stru_cmd_recv;
 
 struct com_send_stru
 {
@@ -80,14 +73,6 @@ struct com_send_stru
 	u8 rfid_state;
 	u8 rfid_id[8];
 };
-
-enum enum_rfid_state
-{
-	RFID_PULL_OUT = 0,
-	RFID_INSERT,
-	RFID_EXIST
-};
-
 
 enum enum_com_msg_state
 {
@@ -100,6 +85,9 @@ enum enum_com_msg_state
 	ENUM_SPP_MSG_CHECKSUM,
 	ENUM_COM_MSG_TAIL			//0x99
 };
+
+
+
 
 void uart_init(u32 bound);
 void USART1SendString(u8 *cmd,u16 len);
