@@ -10,7 +10,14 @@
 u8 Scan_Wtime = 0;//保存扫描需要的时间
 u8 BT_Scan_mode=0;//蓝牙扫描设备模式标志
 
-struct sim_recv_stru g_stru_sim_recv = {0};
+struct sim_cmd_stru g_stru_sim_recv = {0};
+struct sim_cmd_stru g_stru_sim_send = {0};
+
+u16 sim800c_send_msg_id = 0;
+u16 sim800c_recv_msg_id = 0;
+
+u8 g_terminal_id[32] = {0};
+u8 g_all_rfid_state[64] = {0};
 
 //usmart支持部分 
 //将收到的AT指令应答数据返回给电脑串口
@@ -40,7 +47,7 @@ void sim_at_response(u8 mode)
 		#if 1
 		
 		#else
-		USART2SendString(USART2_RX_BUF, len);
+		USART2SendNByte(USART2_RX_BUF, len);
 		#endif
 		
 	}
@@ -415,6 +422,160 @@ void sim800c_test(void)
 	} 	
 }
 
+void sim800c_post_unlock_result(void)
+{
+	u8 i = 0;
+	for(i=0;i<=COM_MAX_SLAVE_ADDR;i++)
+	{
+		if(g_slave_device_info[i].unlock_state != UNLOCK_STATE_RFID_UNDEFINE
+			&& !g_slave_device_info[i].unlock_timeout)
+		{
+			//sim800c_send_cmd(send_buf,send_len);
+			g_slave_device_info[i].unlock_state = UNLOCK_STATE_RFID_UNDEFINE;
+		}
+	}
+}
+
+void sim800c_report_device_info(void)
+{
+
+}
+
+void sim_at_response(u8 mode)
+{
+	u16 len = 0;
+	if(USART2_RX_STA&0X8000)		//接收到一次数据了
+	{
+		len = USART2_RX_STA&0X7FFF;
+		USART2_RX_BUF[len]=0;//添加结束符
+		if(mode)USART2_RX_STA=0;
+		//memcpy(recv_data, USART2_RX_BUF, len);
+		
+		memcpy(&g_stru_sim_recv.function_code, USART2_RX_BUF, 2);
+		switch(g_stru_sim_recv.function_code){
+			case SIM800C_CMD_UNLOCK:
+				break;
+			case SIM800C_CMD_REPROT_DEVICE_INFO:
+				break;
+			case SIM800C_CMD_HEARTBEAT:
+				break;
+			default:
+				break;
+		}
+		#if 1
+		
+		#else
+		USART2SendNByte(USART2_RX_BUF, len);
+		#endif
+		
+	}
+}
+
+u8 sim800c_send_cmd(u8 cmd, u16 len)
+{
+	u8 recv_data[MAX_SERIAL_BUFFER_LENGHT] = {0};
+	u8 count = 0;
+	u8 ret = RET_FAIL;
+	for(count=0;count<3;count++)
+	{
+		RS485SendNByte(cmd, len,0);
+		if(cmd[4] == COM_CMD_GET_SLAVE_ADDR)
+		{
+			rs485_broadcast_timeout = 2000;
+			do
+			{
+				if(rs485_read_data(recv_data) == RET_SUCCESS
+					&& recv_data[4] == cmd[4])
+				{
+					update_slave_addr(recv_data[3], SLAVE_ADDR_NEW);
+					ret = RET_SUCCESS;
+				}
+			}while(rs485_broadcast_timeout);
+		}
+		else
+		{
+			if(rs485_read_data(recv_data) == RET_SUCCESS
+				&& recv_data[4] == cmd[4]
+				&& recv_data[3] == cmd[2])
+			{
+				ret = RET_SUCCESS;
+				switch(recv_data[3])
+				{
+					case COM_CMD_GET_SLAVE_RFID:
+						update_rfid_info(recv_data[3], recv_data[5], &recv_data[6]);
+						break;
+					case COM_CMD_CTRL_SLAVE_UNLOCK:
+						deal_unlock_state(recv_data[3], recv_data[5]);
+						break;
+					case COM_CMD_GET_NEW_RFID_INFO:
+						update_back_info(recv_data[3], recv_data[5], &recv_data[6]);
+						break;
+					default:
+						ret = RET_FAIL;
+						break;
+				}
+			}
+		}
+		if(ret != RET_SUCCESS) break;
+	}
+	if(ret == RET_FAIL)
+	{
+		update_slave_addr(cmd[2], SLAVE_ADDR_INVAILD);
+	}
+	return ret;
+}
+
+void sim800c_get_terminal_id(void)
+{
+	u8 p[50] = {0};
+	u8 *p1,*p2;
+	if(sim800c_send_cmd("AT+CGSN","OK",200)==0)//查询产品序列号
+	{ 
+		p1=(u8*)strstr((const char*)(USART2_RX_BUF+2),"\r\n");//查找回车
+		p1[0]=0;//加入结束符 
+		sprintf((char*)p,"序列号:%s",USART2_RX_BUF+2);
+		USART2_RX_STA=0;		
+	}
+	strcpy(g_terminal_id, p);
+	if(sim800c_send_cmd("AT+CNUM","+CNUM",200)==0)			//查询本机号码
+	{ 
+		p1=(u8*)strstr((const char*)(USART2_RX_BUF),",");
+		p2=(u8*)strstr((const char*)(p1+2),"\"");
+		p2[0]=0;//加入结束符
+		sprintf((char*)p,"本机号码:%s",p1+2);
+		USART2_RX_STA=0;		
+	}
+}
+
+void sim800c_get_rfid_state(void)
+{
+	static u8 rfid_index_start = '0';
+	static u8 rfid_state_ok = '1';
+	static u8 rfid_state_err = '0';
+	
+	g_all_rfid_state[];
+}
+void sim800c_heartbeat(void)
+{
+	static u16 msg_id = 0;
+	static u32 time_50s = 0;
+	static u8 send_buf[SIM800C_SEND_MAX_LENGHT] = {0};
+	if(time_50s == 0 || time_sys-time_50s >= 50*1000)
+	{
+		time_50s = time_sys;
+		
+		//sim800c_send_cmd(u8 *cmd,u8 *ack,u16 waittime);
+	}
+}
+
+void sim800c_process(void)
+{
+	sim_at_response(1);
+	sim800c_test(); 				//GSM测试
+
+	sim800c_report_device_info();
+	sim800c_heartbeat();
+}
 
 void sim800c_reset(void)
 {

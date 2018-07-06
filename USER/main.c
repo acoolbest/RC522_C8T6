@@ -32,25 +32,6 @@ int main(void)
 #include "usart2.h"
 #include "sim800c.h"
 #include "my_function.h"
-void rs485_process(void)
-{
-	
-	usart_get_slave_addr();
-
-	
-	usart_get_slave_rfid();
-
-	
-	//usart_ctrl_slave_unlock();
-
-	
-	usart_get_new_rfid_info();
-}
-
-void sim800c_process(void)
-{
-
-}
 
 int main(void)
 {
@@ -62,8 +43,6 @@ int main(void)
 	delay_ms(0);						//启动系统时钟
 	while(1)
 	{
-		sim_at_response(1);
-		sim800c_test(); 				//GSM测试
 		sim800c_process();
 		rs485_process();
 	}

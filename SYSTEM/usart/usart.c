@@ -19,7 +19,7 @@
 #include "relay.h"
 #include "my_global.h"
 
-
+#if 0
 //串口1中断服务程序
 //注意,读取USARTx->SR能避免莫名其妙的错误   	
 u8 USART_RX_BUF[USART_REC_LEN];     //接收缓冲,最大USART_REC_LEN个字节.
@@ -27,19 +27,20 @@ u8 USART_RX_BUF[USART_REC_LEN];     //接收缓冲,最大USART_REC_LEN个字节.
 //bit15，	接收完成标志
 //bit14，	接收到0x0d
 //bit13~0，	接收到的有效字节数目
-u16 USART_RX_STA=0;       //接收状态标记	  
+u16 USART_RX_STA=0;       //接收状态标记
+#endif
 
-uint8_t g_rs485_addr = 0;//485本机地址
+u8 g_rs485_addr = 0;//485本机地址
 //uint8_t g_rfid_state = RFID_PULL_OUT;
 //uint8_t g_lock_state = LOCK_STATE_OFF;
-uint8_t g_rfid_id[8] = {0};
-uint8_t g_chipID[12] = {0};
+//uint8_t g_rfid_id[8] = {0};
+//uint8_t g_chipID[12] = {0};
 struct cmd_recv_stru g_stru_cmd_recv = {0};
 
 //////////////////////////////////////////////////////////////////
 //加入以下代码,支持printf函数,而不需要选择use MicroLIB	  
 #if 1
-#pragma import(__use_no_semihosting)             
+#pragma import(__use_no_semihosting)
 //标准库需要的支持函数                 
 struct __FILE 
 { 
@@ -80,7 +81,7 @@ int fputc(int ch, FILE *f)
    }
  */
 //////////////////////////////////////////////////////////////////////////////////
-static void update_cmd_recv(struct cmd_recv_stru *p_cmd_recv_stru, uint8_t u8_recv)
+static void update_cmd_recv(struct cmd_recv_stru *p_cmd_recv_stru, u8 u8_recv)
 {
 	p_cmd_recv_stru->cmd_buffer[p_cmd_recv_stru->cmd_index] = u8_recv;
 	p_cmd_recv_stru->cmd_index = (p_cmd_recv_stru->cmd_index + 1) % MAX_SERIAL_BUFFER_LENGHT;
@@ -224,59 +225,31 @@ void uart_init(u32 bound){
 	USART_Cmd(USART1, ENABLE);                    //使能串口 
 
 }
-#if EN_USART1_RX   //如果使能了接收
+
 void USART1_IRQHandler(void)                	//串口1中断服务程序
 {
 	u8 res;
-	if (time_sys - time_uart1 >= 100) //超时100ms则丢弃当前数据
+	if (time_sys > time_uart1 && time_sys - time_uart1 >= 100) //超时100ms则丢弃当前数据
 		g_stru_cmd_recv.cmd_state = ENUM_COM_MSG_HEAD;
 	time_uart1 = time_sys;
 	
 	if(USART_GetITStatus(USART1, USART_IT_RXNE) != RESET)
 	{
-		//LED0 = 0;
-		res =USART_ReceiveData(USART1);//(USART1->DR);	//读取接收到的数据
+		res =USART_ReceiveData(USART1);//读取接收到的数据
 		process_com_data(&g_stru_cmd_recv, res);
 		USART_ClearITPendingBit(USART1, USART_IT_RXNE);
-		
-		#if 0 //接收中断(接收到的数据必须是0x0d 0x0a结尾)
-		if((USART_RX_STA&0x8000)==0)//接收未完成	
-		{
-			if(USART_RX_STA&0x4000)//接收到了0x0d
-			{
-				if(res!=0x0a)USART_RX_STA=0;//接收错误,重新开始
-				else USART_RX_STA|=0x8000;	//接收完成了 
-			}
-			else //还没收到0X0D
-			{	
-				if(res==0x0d)USART_RX_STA|=0x4000;
-				else
-				{
-					USART_RX_BUF[USART_RX_STA&0X3FFF]=res;
-					USART_RX_STA++;
-					if(USART_RX_STA>(USART_REC_LEN-1))USART_RX_STA=0;//接收数据错误,重新开始接收	  
-				}		 
-			}
-		}
-		#endif
 	}
-	#if 0
-	if(USART_GetITStatus(USART1, USART_IT_TXE) != RESET)
-	{
-		USART_ClearITPendingBit(USART1, USART_IT_TXE);           /* Clear the USART transmit interrupt */
-	}
-	#endif
 } 
-#endif	
-void USART1SendByte(unsigned char SendData)
+
+void USART1SendByte(u8 SendData)
 {	   
 	USART_SendData(USART1,SendData);
 	while(USART_GetFlagStatus(USART1, USART_FLAG_TXE) == RESET);
 }
 
-void RS485SendNByte(uint8_t *send_buf, uint16_t send_len)
-{	
-	delay_ms(time_sys%5*2*MAX_SERIAL_BUFFER_LENGHT*1000/(RS485_BaudRate/8));//随机延时，防止总线冲突
+void RS485SendNByte(u8 *send_buf, u16 send_len, u32 delay_time)
+{
+	delay_ms(delay_time);
 	while(send_len--)
 	{
 		USART_SendData(USART1,*send_buf++);
@@ -294,7 +267,7 @@ void USART1SendString(u8 *cmd,u16 len)
 }
 
 //////////////////////////////////////////////////////////////////////////////////
-static void init_RS485_addr(uint8_t * rs485_addr)
+static void init_RS485_addr(u8 * rs485_addr)
 {
 	#ifdef SIM800C_BOARD
 	*rs485_addr = 0xF0;

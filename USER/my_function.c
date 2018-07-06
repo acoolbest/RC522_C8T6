@@ -118,6 +118,7 @@ void deal_cmd_data(struct cmd_recv_stru *p_cmd_recv_stru)
 		u8 send_flag = 1;
 		u16 recv_len = p_cmd_recv_stru->cmd_length;
 		u8 recv_data[MAX_SERIAL_BUFFER_LENGHT] = {0};
+		u32 delay_time = 0;
 		memcpy(recv_data, p_cmd_recv_stru->cmd_buffer, recv_len);
 		if((recv_data[0] == RECV_COM_MSG_HEAD)
 			&& (recv_data[recv_len-1] == DEFAULT_COM_MSG_TAIL)
@@ -171,7 +172,9 @@ void deal_cmd_data(struct cmd_recv_stru *p_cmd_recv_stru)
 				*(p += 2) = DEFAULT_COM_MSG_TAIL;
 				send_buf[1] = (p - send_buf + 1);
 				*(p - 1) = get_checksum(send_buf, send_buf[1]);
-				RS485SendNByte(send_buf,send_buf[1]);
+				if(send_buf[4] == COM_CMD_GET_SLAVE_ADDR)//随机延时，防止总线冲突
+					delay_time = time_sys%(COM_MAX_SLAVE_ADDR+1)*MAX_SERIAL_BUFFER_LENGHT*1000/(RS485_BaudRate/8);
+				RS485SendNByte(send_buf,send_buf[1],delay_time);
 			}
 		}
 		p_cmd_recv_stru->cmd_recv_state = COM_CMD_RECV_INCOMPLETE;
@@ -240,20 +243,6 @@ void usart_get_slave_rfid(void)
 			
 	}
 	
-}
-
-void sim800c_post_unlock_result(void)
-{
-	u8 i = 0;
-	for(i=0;i<=COM_MAX_SLAVE_ADDR;i++)
-	{
-		if(g_slave_device_info[i].unlock_state != UNLOCK_STATE_RFID_UNDEFINE
-			&& !g_slave_device_info[i].unlock_timeout)
-		{
-			//sim800c_send_cmd(send_buf,send_len);
-			g_slave_device_info[i].unlock_state = UNLOCK_STATE_RFID_UNDEFINE;
-		}
-	}
 }
 
 //sim800c收到开锁指令后，设置对应标志位，按需发送
@@ -414,7 +403,7 @@ u8 rs485_send_cmd(u8 *cmd, u16 len)
 	u8 ret = RET_FAIL;
 	for(count=0;count<3;count++)
 	{
-		RS485SendNByte(cmd, len);
+		RS485SendNByte(cmd, len,0);
 		if(cmd[4] == COM_CMD_GET_SLAVE_ADDR)
 		{
 			rs485_broadcast_timeout = 2000;
@@ -461,4 +450,10 @@ u8 rs485_send_cmd(u8 *cmd, u16 len)
 	return ret;
 }
 
+void rs485_process(void)
+{
+	usart_get_slave_addr();
+	usart_get_slave_rfid();
+	usart_get_new_rfid_info();
+}
 

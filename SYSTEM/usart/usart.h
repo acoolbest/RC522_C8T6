@@ -2,26 +2,15 @@
 #define __USART_H
 #include "stdio.h"	
 #include "sys.h"
-/*
- * 支持适应不同频率下的串口波特率设置.
- * 加入了对printf的支持
- * 增加了串口接收命令功能.
- * 修正了printf第一个字符丢失的bug
- * V1.4修改说明
- * 1,修改串口初始化IO的bug
- * 2,修改了USART_RX_STA,使得串口最大接收字节数为2的14次方
- * 3,增加了USART_REC_LEN,用于定义串口最大允许接收的字节数(不大于2的14次方)
- * 4,修改了EN_USART1_RX的使能方式
- */
- 
+
+#if 0
 #define USART_REC_LEN  			200  	//定义最大接收字节数 200
 #define EN_USART1_RX 			1		//使能（1）/禁止（0）串口1接收
-
 extern u8  USART_RX_BUF[USART_REC_LEN]; //接收缓冲,最大USART_REC_LEN个字节.末字节为换行符 
 extern u16 USART_RX_STA;         		//接收状态标记
+#endif
 
 #define RS485_BaudRate			(9600)	//RS485波特率
-
 
 /*
  * PB12、PB13 上拉输入，根据其电平高低来决定地址，2个IO能实现的地址为00、01、10、11
@@ -65,15 +54,6 @@ struct cmd_recv_stru
 };
 extern struct cmd_recv_stru g_stru_cmd_recv;
 
-struct com_send_stru
-{
-	u8 cmd_type;
-	u8 dst_addr;
-	u8 confirm_flag;
-	u8 rfid_state;
-	u8 rfid_id[8];
-};
-
 enum enum_com_msg_state
 {
 	ENUM_COM_MSG_HEAD = 0,		//0x67, 0x68
@@ -86,16 +66,13 @@ enum enum_com_msg_state
 	ENUM_COM_MSG_TAIL			//0x99
 };
 
+extern u8 g_rs485_addr;//485本机地址
 
 
-
-void uart_init(u32 bound);
-void USART1SendString(u8 *cmd,u16 len);
-void RS485SendNByte(uint8_t *send_buf, uint16_t send_len);
 
 void RS485_init(u32 bound);
-void time_out_relay_lock(void);
-void usart_process(void);
+void RS485SendNByte(u8 *send_buf, u16 send_len, u32 delay_time);
+void USART1SendString(u8 *cmd,u16 len);
 
 #endif
 

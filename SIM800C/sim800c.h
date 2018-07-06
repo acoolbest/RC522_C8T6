@@ -1,23 +1,11 @@
 #ifndef __SIM800C_H__
 #define __SIM800C_H__	 
 #include "sys.h"
-//////////////////////////////////////////////////////////////////////////////////	 
-//本程序只供学习使用，未经作者许可，不得用于其它任何用途
-//ALIENTEK STM32开发板
-//ATK-SIM800C GSM/GPRS模块驱动	  
-//正点原子@ALIENTEK
-//技术论坛:www.openedv.com
-//修改日期:2016/4/1
-//版本：V1.0
-//版权所有，盗版必究。
-//Copyright(C) 广州市星翼电子科技有限公司 2009-2019
-//All rights reserved	
-//********************************************************************************
-//无
-//////////////////////////////////////////////////////////////////////////////////	
 
 #define swap16(x) (x&0XFF)<<8|(x&0XFF00)>>8	//高低字节交换宏定义
+
 #define POWKEY PBout(11)	// PB11
+
 #define MAX_SIM800C_BUFFER_LENGHT 200
 
 extern u8 Scan_Wtime;
@@ -47,24 +35,33 @@ void sim800c_mtest_ui(u16 x,u16 y);	 //SIM800C GSM/GPRS主测试UI
 u8 sim800c_gsminfo_show(u16 x,u16 y);//显示GSM模块信息
 void ntp_update(void);               //网络同步时间
 void sim800c_test(void);			 //SIM800C主测试函数
-void sim800c_reset(void);
+
+
+void sim800c_post_unlock_result(void);
+
+void sim800c_process(void);
 void sim800c_init(void);
 
-#define SIM800C_CMD_UNLOCK					0x0101
-#define SIM800C_CMD_REPROT_DEVICE_INFO		0x0102
-#define SIM800C_CMD_HEARTBEAT				0x0103
+#define			SIM800C_CMD_UNLOCK					0x0101
+#define			SIM800C_CMD_REPROT_DEVICE_INFO		0x0102
+#define			SIM800C_CMD_HEARTBEAT				0x0103
+
+#define			SIM800C_SEND_MAX_LENGHT				256
 
 
-struct sim_recv_stru
+struct sim_cmd_stru
 {
 	u16 function_code;
 	u16 data_len;
 	u16 msg_id;
 	u16 terminal_len;
-	u8 terminal_id[20];
+	u8 terminal_id[32];
 	u16 rfid_len;
 	u8 rfid[20];
+	u8 rfid_num;
+	u8 rfid_state[64];//(COM_MAX_SLAVE_ADDR+1)*2
 	u8 port_number;
+	
 	u8 result_code;
 };
 

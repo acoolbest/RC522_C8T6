@@ -6,18 +6,10 @@
 #include "sim800c.h"
 #include "my_global.h"
 
-//////////////////////////////////////////////////////////////////////////////////	 
-//±¾³ÌÐòÖ»¹©Ñ§Ï°Ê¹ÓÃ£¬Î´¾­×÷ÕßÐí¿É£¬²»µÃÓÃÓÚÆäËüÈÎºÎÓÃÍ¾
-//ALIENTEK STM32¿ª·¢°å
-//´®¿Ú2Çý¶¯´úÂë	   
-//ÕýµãÔ­×Ó@ALIENTEK
-//¼¼ÊõÂÛÌ³:www.openedv.com
-//ÐÞ¸ÄÈÕÆÚ:2014/3/29
-//°æ±¾£ºV1.0
-//°æÈ¨ËùÓÐ£¬µÁ°æ±Ø¾¿¡£
-//Copyright(C) ¹ãÖÝÊÐÐÇÒíµç×Ó¿Æ¼¼ÓÐÏÞ¹«Ë¾ 2009-2019
-//All rights reserved									  
-////////////////////////////////////////////////////////////////////////////////// 	   
+/*
+Ã¿´Î·¢ËÍÊý¾ÝÇ°ÏÈÊÕÒ»´ÎÊý¾Ý£¬·ÀÖ¹Êý¾Ý³åÍ»
+*/
+
 
 //´®¿Ú·¢ËÍ»º´æÇø 	
 __align(8) u8 USART2_TX_BUF[USART2_MAX_SEND_LEN]; 	//·¢ËÍ»º³å,×î´óUSART2_MAX_SEND_LEN×Ö½Ú
@@ -34,13 +26,12 @@ u8 USART2_RX_BUF[USART2_MAX_RECV_LEN]; 				//½ÓÊÕ»º³å,×î´óUSART2_MAX_RECV_LEN¸ö×
 //½ÓÊÕµ½µÄÊý¾Ý×´Ì¬
 //[15]:0,Ã»ÓÐ½ÓÊÕµ½Êý¾Ý;1,½ÓÊÕµ½ÁËÒ»ÅúÊý¾Ý.
 //[14:0]:½ÓÊÕµ½µÄÊý¾Ý³¤¶È
-u16 USART2_RX_STA=0;   	 
+u16 USART2_RX_STA=0;
 void USART2_IRQHandler(void)
 {
 	u8 res;
 	if(USART_GetITStatus(USART2, USART_IT_RXNE) != RESET)//½ÓÊÕµ½Êý¾Ý
 	{
-		//LED0 = 0;
 		res =USART_ReceiveData(USART2);				 
 		if(USART2_RX_STA<USART2_MAX_RECV_LEN)		//»¹¿ÉÒÔ½ÓÊÕÊý¾Ý
 		{
@@ -85,10 +76,7 @@ void USART2_Init(u32 bound)
 	USART_InitStructure.USART_Mode = USART_Mode_Rx | USART_Mode_Tx;	               //ÊÕ·¢Ä£Ê½
    
 	USART_Init(USART2, &USART_InitStructure); //³õÊ¼»¯´®¿Ú	2
-  
-	//²¨ÌØÂÊÉèÖÃ
-    //USART2->BRR=(pclk1*1000000)/(bound);// ²¨ÌØÂÊÉèÖÃ	 
-	//USART2->CR1|=0X200C;  	//1Î»Í£Ö¹,ÎÞÐ£ÑéÎ».
+
 	USART_DMACmd(USART2,USART_DMAReq_Tx,ENABLE);  	                   //Ê¹ÄÜ´®¿Ú2µÄDMA·¢ËÍ
 	UART_DMA_Config(DMA1_Channel7,(u32)&USART2->DR,(u32)USART2_TX_BUF);//DMA1Í¨µÀ7,ÍâÉèÎª´®¿Ú2,´æ´¢Æ÷ÎªUSART2_TX_BUF 
 	USART_Cmd(USART2, ENABLE);                                         //Ê¹ÄÜ´®¿Ú 
@@ -110,20 +98,20 @@ void USART2_Init(u32 bound)
 }
 //´®¿Ú2,printf º¯Êý
 //È·±£Ò»´Î·¢ËÍÊý¾Ý²»³¬¹ýUSART2_MAX_SEND_LEN×Ö½Ú
-void u2_printf(char* fmt,...)  
+void u2_printf(char* fmt,...)
 {  
 	va_list ap;
 	va_start(ap,fmt);
 	vsprintf((char*)USART2_TX_BUF,fmt,ap);
 	va_end(ap);
-	while(DMA1_Channel7->CNDTR!=0);	//µÈ´ýÍ¨µÀ7´«ÊäÍê³É   
+	while(DMA1_Channel7->CNDTR!=0);	//µÈ´ýÍ¨µÀ7´«ÊäÍê³É
 	UART_DMA_Enable(DMA1_Channel7,strlen((const char*)USART2_TX_BUF)); 	//Í¨¹ýdma·¢ËÍ³öÈ¥
 }
 
-void USART2SendString(u8 *cmd,u16 len) 
+void USART2SendNByte(u8 *cmd,u16 len)
 {
 	memcpy(USART2_TX_BUF, cmd, len);
-	while(DMA1_Channel7->CNDTR!=0);	//µÈ´ýÍ¨µÀ7´«ÊäÍê³É   
+	while(DMA_GetCurrDataCounter(DMA1_Channel7));//µÈ´ýÍ¨µÀ7´«ÊäÍê³É
 	UART_DMA_Enable(DMA1_Channel7,len);	//Í¨¹ýdma·¢ËÍ³öÈ¥
 }
 
@@ -212,29 +200,8 @@ void UART_DMA_Config(DMA_Channel_TypeDef*DMA_CHx,u32 cpar,u32 cmar)
 //¿ªÆôÒ»´ÎDMA´«Êä
 void UART_DMA_Enable(DMA_Channel_TypeDef*DMA_CHx,u16 len)
 {
-	DMA_Cmd(DMA_CHx, DISABLE );  //¹Ø±Õ Ö¸Ê¾µÄÍ¨µÀ        
+	DMA_Cmd(DMA_CHx, DISABLE);  //¹Ø±Õ Ö¸Ê¾µÄÍ¨µÀ        
 	DMA_SetCurrDataCounter(DMA_CHx,len);//DMAÍ¨µÀµÄDMA»º´æµÄ´óÐ¡	
 	DMA_Cmd(DMA_CHx, ENABLE);           //¿ªÆôDMA´«Êä
 }	   
-///////////////////////////////////////////////////////////////////////////////////////////////////////////////////// 									 
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
 

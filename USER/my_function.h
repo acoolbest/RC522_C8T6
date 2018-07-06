@@ -32,19 +32,12 @@ enum enum_rfid_state
 	RFID_EXIST
 };
 
-void usart_get_slave_addr(void);
-void unlock_timeout_increase(void);
-void usart_get_slave_rfid(void);
-void sim800c_post_unlock_result(void);
-void usart_ctrl_slave_unlock(u8 addr, u8 * rfid_id);
-void usart_get_new_rfid_info(void);
 void usart_process(void);
 
-u8 rs485_send_cmd(u8 *cmd, u16 len);
+void usart_ctrl_slave_unlock(u8 addr, u8 * rfid_id);
 void unlock_timeout_increase(void);
 void update_slave_addr(u8 addr, u8 addr_state);
-
-
-
+u8 rs485_send_cmd(u8 *cmd, u16 len);
+void rs485_process(void);
 
 #endif
