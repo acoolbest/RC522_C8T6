@@ -5,7 +5,7 @@
 #include "key.h"	 	 	 	 	 
 #include "string.h"    
 #include "usart2.h"
-
+#include "my_global.h"
 
 u8 Scan_Wtime = 0;//保存扫描需要的时间
 u8 BT_Scan_mode=0;//蓝牙扫描设备模式标志
@@ -13,12 +13,16 @@ u8 BT_Scan_mode=0;//蓝牙扫描设备模式标志
 struct sim_cmd_stru g_stru_sim_recv = {0};
 struct sim_cmd_stru g_stru_sim_send = {0};
 
-u16 sim800c_send_msg_id = 0;
+u16 g_send_msg_id = 0;
+u16 g_recv_unlock_msg_id = 0;
+
+
 u16 sim800c_recv_msg_id = 0;
 
 u8 g_terminal_id[32] = {0};
-u8 g_all_rfid_state[64] = {0};
+u16 g_terminal_len = 0;
 
+#if 0
 //usmart支持部分 
 //将收到的AT指令应答数据返回给电脑串口
 //mode:0,不清零USART2_RX_STA;
@@ -52,6 +56,7 @@ void sim_at_response(u8 mode)
 		
 	}
 }
+#endif
 //////////////////////////////////////////////////////////////////////////////////
 //ATK-SIM800C 各项测试(拨号测试、短信测试、GPRS测试、蓝牙测试)共用代码
 
@@ -438,22 +443,65 @@ void sim800c_post_unlock_result(void)
 
 void sim800c_report_device_info(void)
 {
+	
+}
 
+u8 deal_sim800c_recv_tcp_data(u8 *recv_data, struct sim_cmd_stru *stru_recv)
+{
+	u8 *p = recv_data;
+	stru_recv->function_code = ((u16)(*p)) << 8 | *(p+1);
+	p+=2;
+	stru_recv->data_len = ((u16)(*p)) << 8 | *(p+1);
+	p+=2;
+	stru_recv->msg_id = ((u16)(*p)) << 8 | *(p+1);
+	p+=2;
+
+	switch(stru_recv->function_code){
+		case SIM800C_CMD_UNLOCK:
+		case SIM800C_CMD_REPROT_DEVICE_INFO:
+			stru_recv->terminal_len = ((u16)(*p)) << 8 | *(p+1);
+			p+=2;
+			memcpy(stru_recv->terminal_id, p, stru_recv->terminal_len);
+			p+=stru_recv->terminal_len;
+
+			stru_recv->rfid_len = ((u16)(*p)) << 8 | *(p+1);
+			p+=2;
+			memcpy(stru_recv->rfid_id, p, stru_recv->rfid_len);
+			p+=stru_recv->rfid_len;
+
+			stru_recv->slave_addr = *p++;
+			if(stru_recv->function_code == SIM800C_CMD_REPROT_DEVICE_INFO)
+				stru_recv->result_code = *p++;
+			break;
+		case SIM800C_CMD_HEARTBEAT:
+			stru_recv->result_code = *p++;
+			break;
+		default:
+			break;
+	}	
 }
 
 void sim_at_response(u8 mode)
-{
+{	
 	u16 len = 0;
+	u8 recv_data[256] = {0};
+	struct sim_cmd_stru stru_recv = {0};
+	
 	if(USART2_RX_STA&0X8000)		//接收到一次数据了
 	{
 		len = USART2_RX_STA&0X7FFF;
 		USART2_RX_BUF[len]=0;//添加结束符
 		if(mode)USART2_RX_STA=0;
-		//memcpy(recv_data, USART2_RX_BUF, len);
+		deal_sim800c_recv_tcp_data(USART2_RX_BUF, &stru_recv);
+
 		
+		
+		
+
 		memcpy(&g_stru_sim_recv.function_code, USART2_RX_BUF, 2);
 		switch(g_stru_sim_recv.function_code){
 			case SIM800C_CMD_UNLOCK:
+				
 				break;
 			case SIM800C_CMD_REPROT_DEVICE_INFO:
 				break;
@@ -471,8 +519,54 @@ void sim_at_response(u8 mode)
 	}
 }
 
-u8 sim800c_send_cmd(u8 cmd, u16 len)
+u8 sim800c_send_tcp_data(u8 data, u16 len)
 {
+	if(connectsta==1 && sim800c_send_cmd("AT+CIPSEND=len",">",500)==0)		//发送数据
+	{ 
+			//printf("CIPSEND DATA:%s\r\n",p1);	 			//发送数据打印到串口
+		u2_printf("%s\r\n",p1);
+		delay_ms(50);
+		sim800c_send_cmd((u8*)0X1A,"SEND OK",1000);//最长等待10s
+		delay_ms(500); 
+	}else sim800c_send_cmd((u8*)0X1B,0,0);	//ESC,取消发送
+
+		
+	u8 res=0; 
+	USART2_RX_STA=0;
+	if((u32)cmd<=0XFF)
+	{
+		while(DMA1_Channel7->CNDTR!=0);	//等待通道7传输完成   
+		USART2->DR=(u32)cmd;
+	}else u2_printf("%s\r\n",cmd);//发送命令
+	
+	if(waittime==1100)//11s后读回串口数据(蓝牙扫描模式)
+	{
+		 Scan_Wtime = 11;  //需要定时的时间
+		 TIM4_SetARR(9999);//产生1S定时中断
+	}
+	
+	
+	if(ack&&waittime)		//需要等待应答
+	{ 
+	   while(--waittime)	//等待倒计时
+	   {
+		   if(BT_Scan_mode)//蓝牙扫描模式
+		   {
+			   res=KEY_Scan(0);//返回上一级
+			   if(res==WKUP_PRES)return 2;
+		   }
+		   delay_ms(10);
+		   if(USART2_RX_STA&0X8000)//接收到期待的应答结果
+		   {
+			   if(sim800c_check_cmd(ack))break;//得到有效数据 
+			   USART2_RX_STA=0;
+		   } 
+	   }
+	   if(waittime==0)res=1; 
+	}
+	return res;
+
+
 	u8 recv_data[MAX_SERIAL_BUFFER_LENGHT] = {0};
 	u8 count = 0;
 	u8 ret = RET_FAIL;
@@ -534,9 +628,9 @@ void sim800c_get_terminal_id(void)
 		p1=(u8*)strstr((const char*)(USART2_RX_BUF+2),"\r\n");//查找回车
 		p1[0]=0;//加入结束符 
 		sprintf((char*)p,"序列号:%s",USART2_RX_BUF+2);
-		USART2_RX_STA=0;		
+		USART2_RX_STA=0;
 	}
-	strcpy(g_terminal_id, p);
+	g_terminal_len = sprintf(g_terminal_id,"%s",USART2_RX_BUF+2);
 	if(sim800c_send_cmd("AT+CNUM","+CNUM",200)==0)			//查询本机号码
 	{ 
 		p1=(u8*)strstr((const char*)(USART2_RX_BUF),",");
@@ -547,24 +641,98 @@ void sim800c_get_terminal_id(void)
 	}
 }
 
-void sim800c_get_rfid_state(void)
+u8 sim800c_get_rc522_state(u8 * rc522_state)
 {
-	static u8 rfid_index_start = '0';
-	static u8 rfid_state_ok = '1';
-	static u8 rfid_state_err = '0';
-	
-	g_all_rfid_state[];
+	static u8 rc522_index_start = '0';
+	static u8 rc522_state_ok = '1';
+	static u8 rc522_state_err = '0';
+	u8 *p = rc522_state;
+	u8 i = 0;
+	u8 rc522_num = 0;
+	for(i=0;i<=COM_MAX_SLAVE_ADDR;i++)
+	{
+		if(g_slave_device_info[i].addr_state != SLAVE_ADDR_UNDEFINED)
+		{
+			*p++ = i+ rc522_index_start;
+			if(g_slave_device_info[i].addr_state == SLAVE_ADDR_INVAILD)
+				*p++ = rc522_state_err;
+			else
+				*p++ = rc522_state_ok;
+			rc522_num++;
+		}
+	}
+	return rc522_num;
 }
+
+u16 sprintf_send_tcp_data(u8 *send_buf, u16 function_code, u8 addr)
+{
+	u8 *p = send_buf;
+	u16 data_len = 0;
+	u8 rc522_num = 0;
+	*p++ = (u8)(function_code >> 8);
+	*p++ = (u8)function_code;
+	
+	switch(function_code){
+		case SIM800C_CMD_UNLOCK:
+			*(p += 2) = (u8)(g_recv_unlock_msg_id >> 8);
+			*p++ = (u8)g_recv_unlock_msg_id;
+			*p++ = (u8)(g_terminal_len >> 8);
+			*p++ = (u8)g_terminal_len;
+			memcpy(p, g_terminal_id, g_terminal_len);
+			p += g_terminal_len;
+			*p++ = 0x00;
+			*p++ = 0x08;
+			memcpy(p, g_slave_device_info[addr].rfid_id, 8);
+			p += 8;
+			*p++ = addr;
+			*p++ = g_slave_device_info[addr].unlock_state == UNLOCK_STATE_OK ? 0x00:0x01;
+			break;
+		case SIM800C_CMD_REPROT_DEVICE_INFO:
+			*(p += 2) = (u8)(g_send_msg_id >> 8);
+			*p++ = (u8)g_send_msg_id;
+			g_send_msg_id++;
+			*p++ = (u8)(g_terminal_len >> 8);
+			*p++ = (u8)g_terminal_len;
+			memcpy(p, g_terminal_id, g_terminal_len);
+			p += g_terminal_len;
+			*p++ = 0x00;
+			*p++ = 0x08;
+			memcpy(p, g_slave_device_info[addr].rfid_id, 8);
+			p += 8;
+			*p++ = addr;
+			break;
+		case SIM800C_CMD_HEARTBEAT:
+			*(p += 2) = (u8)(g_send_msg_id >> 8);
+			*p++ = (u8)g_send_msg_id;
+			g_send_msg_id++;
+			*p++ = (u8)(g_terminal_len >> 8);
+			*p++ = (u8)g_terminal_len;
+			memcpy(p, g_terminal_id, g_terminal_len);
+			p += g_terminal_len;
+			rc522_num = sim800c_get_rc522_state(p+1);
+			*p++ = rc522_num;
+			p += (rc522_num*2);
+			break;
+		default:
+			break;
+	}
+	data_len = p-send_buf;
+	send_buf[2] = (u8)(data_len >> 8);
+	send_buf[3] = (u8)data_len;
+	return data_len;
+}
+
 void sim800c_heartbeat(void)
 {
 	static u16 msg_id = 0;
 	static u32 time_50s = 0;
-	static u8 send_buf[SIM800C_SEND_MAX_LENGHT] = {0};
+	u16 data_len = 0;
+	u8 send_buf[SIM800C_SEND_MAX_LENGHT] = {0};
 	if(time_50s == 0 || time_sys-time_50s >= 50*1000)
 	{
 		time_50s = time_sys;
-		
-		//sim800c_send_cmd(u8 *cmd,u8 *ack,u16 waittime);
+		data_len = sprintf_send_tcp_data(send_buf, SIM800C_CMD_HEARTBEAT, 0x00);
+		sim800c_send_tcp_data(send_buf, data_len);
 	}
 }
 

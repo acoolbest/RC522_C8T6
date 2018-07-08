@@ -48,6 +48,12 @@ void sim800c_init(void);
 
 #define			SIM800C_SEND_MAX_LENGHT				256
 
+enum sim_tcp_send_state{
+	TCP_SEND_OK = 0,
+	TCP_SENDING,
+	TCP_SEND_ERR
+};
+
 
 struct sim_cmd_stru
 {
@@ -57,10 +63,10 @@ struct sim_cmd_stru
 	u16 terminal_len;
 	u8 terminal_id[32];
 	u16 rfid_len;
-	u8 rfid[20];
+	u8 rfid_id[20];
 	u8 rfid_num;
 	u8 rfid_state[64];//(COM_MAX_SLAVE_ADDR+1)*2
-	u8 port_number;
+	u8 slave_addr;
 	
 	u8 result_code;
 };
