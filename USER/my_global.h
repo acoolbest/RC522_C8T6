@@ -22,7 +22,7 @@ struct slave_device_info{
 	u8 rfid_state;
 	u8 unlock_state;
 	u32 unlock_timeout;
-	u8 rfid_id[8];
+	u8 rfid_id[20];
 };
 
 #define			COM_MAX_SLAVE_ADDR		0x1F

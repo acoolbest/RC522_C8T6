@@ -15,6 +15,19 @@
 #define			LOCK_STATE_OFF						0x00
 #define			LOCK_STATE_ON						0x01
 
+// 短整型大小端互换
+#define BigLittleSwap16(A)  ((((u16)(A) & 0xff00) >> 8) | \
+                                                 ((((u16))(A) & 0x00ff) << 8))
+// 长整型大小端互换
+#define BigLittleSwap32(A)  ((((u32)(A) & 0xff000000) >> 24) | \
+                                                 (((u32)(A) & 0x00ff0000) >> 8) | \
+                                                 (((u32)(A) & 0x0000ff00) << 8) | \
+                                                 (((u32)(A) & 0x000000ff) << 24))
+u32 HtoNl(u32 h);
+u32 NtoHl(u32 n);
+u16 HtoNs(u16 h);
+u16 NtoHs(u16 n);
+
 enum enum_unlock_state
 {
 	UNLOCK_STATE_RFID_UNDEFINE = 0x00,			//未定义
