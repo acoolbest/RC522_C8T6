@@ -43,8 +43,8 @@ int main(void)
 	delay_ms(0);						//启动系统时钟
 	while(1)
 	{
-		sim800c_process();
 		rs485_process();
+		sim800c_process();
 	}
 }
 #endif

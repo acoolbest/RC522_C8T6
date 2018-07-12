@@ -1,3 +1,4 @@
+#include <stdlib.h>
 #include "sim800c.h"
 #include "usart.h"		
 #include "delay.h"	
@@ -19,45 +20,16 @@ u16 g_recv_unlock_msg_id[COM_MAX_SLAVE_ADDR+1] = 0;
 u8 g_terminal_id[32] = {0};
 u16 g_terminal_len = 0;
 
-u8 g_server_connect_state = 0;
+u8 g_server_connect_state = SERVER_DISCONNECTED;
+u8 g_sim800c_csq = 0;
+u8 g_heartbeat_err_count = 0;
+u8 g_sim800c_ready_state = SIM800C_NOT_READY;
 
-#if 0
-//usmart支持部分 
-//将收到的AT指令应答数据返回给电脑串口
-//mode:0,不清零USART2_RX_STA;
-//     1,清零USART2_RX_STA;
-void sim_at_response(u8 mode)
-{
-	u16 len = 0;
-	if(USART2_RX_STA&0X8000)		//接收到一次数据了
-	{
-		len = USART2_RX_STA&0X7FFF;
-		USART2_RX_BUF[len]=0;//添加结束符
-		if(mode)USART2_RX_STA=0;
-		//memcpy(recv_data, USART2_RX_BUF, len);
-		
-		memcpy(&g_stru_sim_recv.function_code, USART2_RX_BUF, 2);
-		switch(g_stru_sim_recv.function_code){
-			case SIM800C_CMD_UNLOCK:
-				break;
-			case SIM800C_CMD_REPROT_DEVICE_INFO:
-				break;
-			case SIM800C_CMD_HEARTBEAT:
-				break;
-			default:
-				break;
-		}
-		#if 1
-		
-		#else
-		USART2SendNByte(USART2_RX_BUF, len);
-		#endif
-		
-	}
-}
-#endif
+const u8 *modetbl[2]={"TCP","UDP"};//连接模式
+const u8 g_url[] = "208l8w1838.51mypc.cn";
+const u8 g_port[] = "48438";
+
 //////////////////////////////////////////////////////////////////////////////////
-//ATK-SIM800C 各项测试(拨号测试、短信测试、GPRS测试、蓝牙测试)共用代码
 
 //sim800C发送命令后,检测接收到的应答
 //str:期待的应答结果
@@ -90,22 +62,10 @@ u8 sim800c_send_cmd(u8 *cmd,u8 *ack,u16 waittime)
 		USART2->DR=(u32)cmd;
 	}else u2_printf("%s\r\n",cmd);//发送命令
 	
-	if(waittime==1100)//11s后读回串口数据(蓝牙扫描模式)
-	{
-		 Scan_Wtime = 11;  //需要定时的时间
-		 TIM4_SetARR(9999);//产生1S定时中断
-	}
-	
-	
 	if(ack&&waittime)		//需要等待应答
 	{ 
 	   while(--waittime)	//等待倒计时
 	   {
-		   if(BT_Scan_mode)//蓝牙扫描模式
-		   {
-			   res=KEY_Scan(0);//返回上一级
-			   if(res==WKUP_PRES)return 2;
-		   }
 		   delay_ms(10);
 		   if(USART2_RX_STA&0X8000)//接收到期待的应答结果
 		   {
@@ -118,37 +78,8 @@ u8 sim800c_send_cmd(u8 *cmd,u8 *ack,u16 waittime)
 	return res;
 } 
 
-//接收SIM800C返回数据（蓝牙测试模式下使用）
-//request:期待接收命令字符串
-//waittimg:等待时间(单位：10ms)
-//返回值:0,发送成功(得到了期待的应答结果)
-//       1,发送失败
-u8 sim800c_wait_request(u8 *request ,u16 waittime)
-{
-	 u8 res = 1;
-	 u8 key;
-	 if(request && waittime)
-	 {
-		while(--waittime)
-		{   
-		   key=KEY_Scan(0);
-		   if(key==WKUP_PRES) return 2;//返回上一级
-		   delay_ms(10);
-		   if(USART2_RX_STA &0x8000)//接收到期待的应答结果
-		   {
-			  if(sim800c_check_cmd(request)) break;//得到有效数据
-			  USART2_RX_STA=0;
-		   }
-		}
-		if(waittime==0)res=0;
-	 }
-	 return res;
-}
-
 /////////////////////////////////////////////////////////////////////////////////////////////////////
 //GPRS测试部分代码
-
-const u8 *modetbl[2]={"TCP","UDP"};//连接模式
 
 //tcp/udp测试
 //带心跳功能,以维持连接
@@ -280,11 +211,7 @@ u8 sim800c_gprs_test(void)
 	return 0;
 }
 
-
 /////////////////////////////////////////////////////////////////
-//蓝牙测试部分代码
-
-///////////////////////////////////////////////////////////////////// 
 
 //ATK-SIM800C GSM/GPRS主测试控制部分
 //测试界面主UI
@@ -426,79 +353,85 @@ void sim800c_test(void)
 	} 	
 }
 
-
-
-u8 deal_sim800c_recv_tcp_data(u8 *recv_data, struct sim_cmd_stru *stru_recv)
-{
-	u8 *p = recv_data;
-	stru_recv->function_code = ((u16)(*p)) << 8 | *(p+1);
-	p+=2;
-	stru_recv->data_len = ((u16)(*p)) << 8 | *(p+1);
-	p+=2;
-	stru_recv->msg_id = ((u16)(*p)) << 8 | *(p+1);
-	p+=2;
-
-	switch(stru_recv->function_code){
-		case SIM800C_CMD_UNLOCK:
-		case SIM800C_CMD_REPROT_DEVICE_INFO:
-			stru_recv->terminal_len = ((u16)(*p)) << 8 | *(p+1);
-			p+=2;
-			memcpy(stru_recv->terminal_id, p, stru_recv->terminal_len);
-			p+=stru_recv->terminal_len;
-
-			stru_recv->rfid_len = ((u16)(*p)) << 8 | *(p+1);
-			p+=2;
-			memcpy(stru_recv->rfid_id, p, stru_recv->rfid_len);
-			p+=stru_recv->rfid_len;
-
-			stru_recv->slave_addr = *p++;
-			if(stru_recv->function_code == SIM800C_CMD_REPROT_DEVICE_INFO)
-				stru_recv->result_code = *p++;
-			break;
-		case SIM800C_CMD_HEARTBEAT:
-			stru_recv->result_code = *p++;
-			break;
-		default:
-			break;
-	}	
-}
-
 void sim_at_response(u8 mode)
 {	
-	u16 len = 0;
-	u8 recv_data[256] = {0};
-	struct sim_cmd_stru stru_recv = {0};
-	
 	if(USART2_RX_STA&0X8000)		//接收到一次数据了
 	{
-		len = USART2_RX_STA&0X7FFF;
-		USART2_RX_BUF[len]=0;//添加结束符
+		
+		USART2_RX_BUF[USART2_RX_STA&0X7FFF]=0;//添加结束符
 		if(mode)USART2_RX_STA=0;
-		deal_sim800c_recv_tcp_data(USART2_RX_BUF, &stru_recv);
+		USART1SendString(USART2_RX_BUF, USART2_RX_STA&0X7FFF);
+	}
+}
 
-		
-		
-		
+u8 check_tcp_close(void)
+{
+	if(g_server_connect_state && sim800c_check_cmd("CLOSED")) 
+		g_server_connect_state = SERVER_DISCONNECTED;
+	return g_server_connect_state;
+}
 
-		memcpy(&g_stru_sim_recv.function_code, USART2_RX_BUF, 2);
-		switch(g_stru_sim_recv.function_code){
-			case SIM800C_CMD_UNLOCK:
-				
-				break;
-			case SIM800C_CMD_REPROT_DEVICE_INFO:
-				break;
-			case SIM800C_CMD_HEARTBEAT:
-				break;
-			default:
-				break;
-		}
-		#if 1
+void sim800c_detect(void)
+{
+	u8 res = 0;
+	static u16 msg_id = 0;
+	static u32 time_10s = 0;
+	u8 p[50] = {0};
+	if(g_server_connect_state == SERVER_DISCONNECTED || time_10s == 0 || time_sys-time_10s >= 10*1000)
+	{
+		time_10s = time_sys;
+		if(sim800c_send_cmd("AT+CPIN?","OK",200)) res|=1<<2;	//查询SIM卡是否在位 
+		if(sim800c_send_cmd("AT+CSQ","+CSQ:",200)==0)			//查询信号质量
+		{ 
+			p1=(u8*)strstr((const char*)(USART2_RX_BUF),":");
+			p2=(u8*)strstr((const char*)(p1),",");
+			p2[0]=0;//加入结束符
+			g_sim800c_csq = atoi(p1+2);
+			USART2_RX_STA=0;
+		}else res|=1<<3;
 		
-		#else
-		USART2SendNByte(USART2_RX_BUF, len);
-		#endif
+		sim800c_send_cmd("AT+CIPSTATUS","OK",500);	//查询连接状态
+		if(strstr((const char*)USART2_RX_BUF,"CLOSED"))
+			g_server_connect_state = SERVER_CLOSED;
+		if(strstr((const char*)USART2_RX_BUF,"CONNECT OK"))
+			g_server_connect_state = SERVER_CONNECTED;
+
 		
 	}
+		
+
+	if(g_server_connect_state == SERVER_CLOSED || g_heartbeat_err_count > 3)//连接中断了,或者连续3次心跳没有正确发送成功,则重新连接
+	{
+		sim800c_send_cmd("AT+CIPCLOSE=1","CLOSE OK",500);	//关闭连接
+		sim800c_send_cmd("AT+CIPSHUT","SHUT OK",500);		//关闭移动场景
+		sprintf((char*)p,"AT+CIPSTART=\"%s\",\"%s\",\"%s\"",modetbl[0],g_url,g_port);
+		sim800c_send_cmd(p,"OK",500);						//尝试重新连接
+		g_server_connect_state = SERVER_DISCONNECTED;
+		g_heartbeat_err_count = 0;
+	}
+	
+	u8 timex=0;
+	u8 sim_ready=0;
+	while(1)
+	{
+		delay_ms(10);
+		sim_at_response(1);//检查GSM模块发送过来的数据,及时上传给电脑
+		#if 1
+		if(sim_ready)//SIM卡就绪.
+		{
+			sim800c_gprs_test();//GPRS测试
+			//sim800c_mtest_ui(40,30);
+			timex=0;
+		}
+		if(timex==0 || sim_ready==0)		//2.5秒左右更新一次
+		{
+			if(sim800c_gsminfo_show(40,225)==0)sim_ready=1;
+			else sim_ready=0;
+		}	
+		//if((timex%20)==0)LED0=!LED0;//200ms闪烁 
+		timex++;
+		#endif
+	} 	
 }
 
 u16 sprintf_recv_tcp_data(u8 *send_buf, u8* recv_buf)
@@ -527,6 +460,7 @@ u16 sprintf_recv_tcp_data(u8 *send_buf, u8* recv_buf)
 			return 0;
 	}
 }
+
 u8 sim800c_send_tcp_data(u8 *data, u16 len)
 {
 	u8 ret = RET_FAIL;
@@ -577,31 +511,8 @@ u8 sim800c_send_tcp_data(u8 *data, u16 len)
 	else
 	{
 		sim800c_send_cmd((u8*)0X1B,0,0);
-		g_server_connect_state = SERVER_DISCONNECTED;
 	}
 	return ret;
-}
-
-void sim800c_get_terminal_id(void)
-{
-	u8 p[50] = {0};
-	u8 *p1,*p2;
-	if(sim800c_send_cmd("AT+CGSN","OK",200)==0)//查询产品序列号
-	{ 
-		p1=(u8*)strstr((const char*)(USART2_RX_BUF+2),"\r\n");//查找回车
-		p1[0]=0;//加入结束符 
-		sprintf((char*)p,"序列号:%s",USART2_RX_BUF+2);
-		USART2_RX_STA=0;
-	}
-	g_terminal_len = sprintf(g_terminal_id,"%s",USART2_RX_BUF+2);
-	if(sim800c_send_cmd("AT+CNUM","+CNUM",200)==0)			//查询本机号码
-	{ 
-		p1=(u8*)strstr((const char*)(USART2_RX_BUF),",");
-		p2=(u8*)strstr((const char*)(p1+2),"\"");
-		p2[0]=0;//加入结束符
-		sprintf((char*)p,"本机号码:%s",p1+2);
-		USART2_RX_STA=0;		
-	}
 }
 
 void sim800c_recv_unlock_data(void)
@@ -661,11 +572,6 @@ void sim800c_recv_unlock_data(void)
 			usart_ctrl_slave_unlock(stru_recv.slave_addr, stru_recv.rfid_id);
 		}
 	}
-}
-
-void sim800c_detect(void)
-{
-
 }
 
 u8 sim800c_get_rc522_state(u8 * rc522_state)
@@ -804,12 +710,60 @@ void sim800c_heartbeat(void)
 	static u32 time_50s = 0;
 	u16 data_len = 0;
 	u8 send_buf[SIM800C_SEND_MAX_LENGHT] = {0};
-	if(time_50s == 0 || time_sys-time_50s >= 50*1000)
+	
+	if(g_server_connect_state != SERVER_CONNECTED) return;
+	
+	if(g_heartbeat_err_count || time_50s == 0 || time_sys-time_50s >= 50*1000)
 	{
 		time_50s = time_sys;
 		data_len = sprintf_send_tcp_data(send_buf, SIM800C_CMD_HEARTBEAT, 0x00);
-		sim800c_send_tcp_data(send_buf, data_len);
+		if(sim800c_send_tcp_data(send_buf, data_len) == RET_SUCCESS)
+			g_heartbeat_err_count = 0;
+		else
+			g_heartbeat_err_count++;
 	}
+}
+
+u16 sim800c_init_tcp_env(void)
+{
+	u16 res=0;
+	u8 *p1, *p2;
+	g_server_connect_state = SERVER_DISCONNECTED;
+	g_sim800c_ready_state = SIM800C_NOT_READY;
+	while(sim800c_send_cmd("AT","OK",100))				//检测是否应答AT指令 
+	{
+		delay_ms(1200);
+	}
+	if(sim800c_send_cmd("ATE0","OK",200)) res|=1<<0;	//不回显
+	if(sim800c_send_cmd("AT+CGSN","OK",200)==0)			//查询产品序列号
+	{ 
+		p1=(u8*)strstr((const char*)(USART2_RX_BUF+2),"\r\n");//查找回车
+		p1[0]=0;//加入结束符 
+		g_terminal_len = sprintf(g_terminal_id,"%s",USART2_RX_BUF+2);
+		USART2_RX_STA=0;
+	}else res|=1<<1;
+	if(sim800c_send_cmd("AT+CPIN?","OK",200)) res|=1<<2;	//查询SIM卡是否在位 
+	if(sim800c_send_cmd("AT+CSQ","+CSQ:",200)==0)			//查询信号质量
+	{ 
+		p1=(u8*)strstr((const char*)(USART2_RX_BUF),":");
+		p2=(u8*)strstr((const char*)(p1),",");
+		p2[0]=0;//加入结束符
+		g_sim800c_csq = atoi(p1+2);
+		USART2_RX_STA=0;
+	}else res|=1<<3;
+	sim800c_send_cmd("AT+CIPCLOSE=1","CLOSE OK",100);	//关闭连接
+	sim800c_send_cmd("AT+CIPSHUT","SHUT OK",100);		//关闭移动场景
+	if(sim800c_send_cmd("AT+CGCLASS=\"B\"","OK",1000)) res|=1<<4;				//设置GPRS移动台类别为B,支持包交换和数据交换 
+	if(sim800c_send_cmd("AT+CGDCONT=1,\"IP\",\"CMNET\"","OK",1000)) res|=1<<5;	//设置PDP上下文,互联网接协议,接入点等信息
+	if(sim800c_send_cmd("AT+CGATT=1","OK",500)) res|=1<<6;						//附着GPRS业务
+	if(sim800c_send_cmd("AT+CIPCSGP=1,\"CMNET\"","OK",500)) res|=1<<7;	 		//设置为GPRS连接模式
+	if(sim800c_send_cmd("AT+CIPHEAD=0","OK",500)) res|=1<<8;	 				//设置接收数据不显示IP头(去掉多余数据)
+	return res;
+}
+
+u8 sim800c_init_tcp_socket(void)
+{
+
 }
 
 void sim800c_process(void)
@@ -827,6 +781,8 @@ void sim800c_reset(void)
 	POWKEY = 1;
 	delay_ms(1000);
 	POWKEY = 0;
+	
+	while(sim800c_init_tcp_env()) delay_ms(1000);
 }
 
 void sim800c_init(void)
@@ -838,6 +794,7 @@ void sim800c_init(void)
 	GPIO_InitStructure.GPIO_Speed = GPIO_Speed_50MHz;		 //IO口速度为50MHz
 	GPIO_Init(GPIOB, &GPIO_InitStructure);					 //根据设定参数初始化GPIOB.11
 	sim800c_reset();
+	
 }
 
 

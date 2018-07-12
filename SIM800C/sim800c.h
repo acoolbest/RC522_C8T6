@@ -49,8 +49,15 @@ void sim800c_init(void);
 
 enum server_connect_state{
 	SERVER_DISCONNECTED = 0,
-	SERVER_CONNECTED
+	SERVER_CONNECTED,
+	SERVER_CLOSED
 };
+
+enum sim800c_ready_state{
+	SIM800C_NOT_READY = 0,
+	SIM800C_READY
+};
+
 
 enum sim_tcp_send_state{
 	TCP_SEND_OK = 0,
@@ -79,5 +86,32 @@ struct sim_cmd_stru
 	
 	u8 result_code;
 };
+#if 0
+AT                             检查模块工作
+
+AT+IPR=38400                   设置波特率
+
+AT&W                          保存设置
+
+AT+CPIN?                       查询网络注册情况
+
+AT+CSQ                         查询信号质量。
+
+AT+CREG?                       查询GSM网络注册状态
+
+AT+CGREG?                      查询GPRS网络注册状态
+
+AT+CGATT=1                     使模块附着GPRS网络
+
+AT+CIPMODE=1                  设置透传模式
+
+AT+CSTT=CMNET                 设置APN
+
+AT+CIICR                        激活移动场景，建立无线连接
+
+AT+CIFSR                        获取模块IP地址
+
+AT+CIPSTART=” TCP”,” yuganghua.3322.org”,”65005”  设置要连接的远程服务器域名和端口
+#endif
 
 #endif
