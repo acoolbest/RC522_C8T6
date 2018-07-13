@@ -397,10 +397,22 @@ void update_slave_addr(u8 addr, u8 addr_state)
 			g_slave_device_info[addr].addr_state = addr_state;
 		}
 	}
-	else
+	else if(addr_state == SLAVE_ADDR_NORMAL)
 	{
-		g_slave_device_info[addr].addr = addr;
-		g_slave_device_info[addr].addr_state = addr_state;
+		if(g_slave_device_info[addr].addr_state == SLAVE_ADDR_NEW
+			||g_slave_device_info[addr].addr_state == SLAVE_ADDR_INVAILD)
+		{
+			g_slave_device_info[addr].addr = addr;
+			g_slave_device_info[addr].addr_state = addr_state;
+		}
+	}
+	else if(addr_state == SLAVE_ADDR_INVAILD)
+	{
+		if(g_slave_device_info[addr].addr_state != SLAVE_ADDR_UNDEFINED)
+		{
+			g_slave_device_info[addr].addr = addr;
+			g_slave_device_info[addr].addr_state = addr_state;
+		}
 	}
 }
 
@@ -457,14 +469,20 @@ u8 rs485_send_cmd(u8 *cmd, u16 len)
 					ret = RET_SUCCESS;
 				}
 			}while(rs485_broadcast_timeout);
+
+			if(count == 2 && ret == RET_FAIL) 
+				update_slave_addr(cmd[2], SLAVE_ADDR_UNDEFINED);
 		}
 		else
 		{
-			if(rs485_read_data(recv_data) == RET_SUCCESS
+			ret = rs485_read_data(recv_data);
+			if(count == 2 && ret == RET_FAIL)
+				update_slave_addr(cmd[2], SLAVE_ADDR_INVAILD);
+
+			if(ret == RET_SUCCESS
 				&& recv_data[4] == cmd[4]
 				&& recv_data[3] == cmd[2])
 			{
-				ret = RET_SUCCESS;
 				switch(recv_data[3])
 				{
 					case COM_CMD_GET_SLAVE_RFID:
@@ -481,13 +499,12 @@ u8 rs485_send_cmd(u8 *cmd, u16 len)
 						break;
 				}
 			}
+			
 		}
-		if(ret != RET_SUCCESS) break;
+		if(ret == RET_SUCCESS) break;
 	}
-	if(ret == RET_FAIL)
-	{
-		update_slave_addr(cmd[2], SLAVE_ADDR_INVAILD);
-	}
+	if(ret == RET_SUCCESS && cmd[2] != COM_BROADCAST_ADDR)
+		update_slave_addr(cmd[2], SLAVE_ADDR_NORMAL);
 	return ret;
 }
 

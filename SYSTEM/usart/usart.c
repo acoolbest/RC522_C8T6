@@ -276,18 +276,22 @@ static void init_RS485_addr(u8 * rs485_addr)
 	#ifdef RC522_BOARD //读取拨码开关的值
 	GPIO_InitTypeDef GPIO_InitStruct;
 	
-	RCC_APB2PeriphClockCmd(RCC_APB2Periph_GPIOB,ENABLE);
+	RCC_APB2PeriphClockCmd(RCC_APB2Periph_GPIOA | RCC_APB2Periph_GPIOB, ENABLE);
 	
 	GPIO_InitStruct.GPIO_Mode = GPIO_Mode_IPU;
 	GPIO_InitStruct.GPIO_Speed = GPIO_Speed_50MHz;
-	
-	GPIO_InitStruct.GPIO_Pin = GPIO_Pin_12;
-	GPIO_Init(GPIOB, &GPIO_InitStruct);
-	
-	GPIO_InitStruct.GPIO_Pin = GPIO_Pin_13;
-	GPIO_Init(GPIOB, &GPIO_InitStruct);
 
-	*rs485_addr = (RS485_ADDR_HBIT<<1 + RS485_ADDR_LBIT);
+	GPIO_InitStruct.GPIO_Pin = GPIO_Pin_8;
+	GPIO_Init(GPIOA, &GPIO_InitStruct);
+	
+	GPIO_InitStruct.GPIO_Pin = GPIO_Pin_15 | GPIO_Pin_14 | GPIO_Pin_13 | GPIO_Pin_12;
+	GPIO_Init(GPIOB, &GPIO_InitStruct);
+	
+	*rs485_addr = (RS485_ADDR_0BIT << 0) 
+		| (RS485_ADDR_1BIT << 1) 
+		| (RS485_ADDR_2BIT << 2)
+		| (RS485_ADDR_3BIT << 3)
+		| (RS485_ADDR_4BIT << 4);
 	#endif
 }
 

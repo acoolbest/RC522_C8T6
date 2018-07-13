@@ -26,6 +26,7 @@ int main(void)
 		usart_process();
 	}
 }
+
 #endif
 
 #ifdef SIM800C_BOARD

@@ -17,7 +17,7 @@
 
 // 短整型大小端互换
 #define BigLittleSwap16(A)  ((((u16)(A) & 0xff00) >> 8) | \
-                                                 ((((u16))(A) & 0x00ff) << 8))
+                                                 (((u16)(A) & 0x00ff) << 8))
 // 长整型大小端互换
 #define BigLittleSwap32(A)  ((((u32)(A) & 0xff000000) >> 24) | \
                                                  (((u32)(A) & 0x00ff0000) >> 8) | \
@@ -50,6 +50,7 @@ void usart_process(void);
 void usart_ctrl_slave_unlock(u8 addr, u8 * rfid_id);
 void unlock_timeout_increase(void);
 void update_slave_addr(u8 addr, u8 addr_state);
+void deal_unlock_state(u8 addr, u8 state);
 u8 rs485_send_cmd(u8 *cmd, u16 len);
 void rs485_process(void);
 

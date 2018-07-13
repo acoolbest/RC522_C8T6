@@ -13,10 +13,14 @@ extern u16 USART_RX_STA;         		//接收状态标记
 #define RS485_BaudRate			(9600)	//RS485波特率
 
 /*
- * PB12、PB13 上拉输入，根据其电平高低来决定地址，2个IO能实现的地址为00、01、10、11
+ * PB12、PB13 上拉输入，根据其电平高低来决定地址，5个IO能实现 00000 ~ 11111 共32个地址
  */
-#define RS485_ADDR_HBIT  GPIO_ReadInputDataBit(GPIOB,GPIO_Pin_12)
-#define RS485_ADDR_LBIT  GPIO_ReadInputDataBit(GPIOB,GPIO_Pin_13)
+#define RS485_ADDR_0BIT  GPIO_ReadInputDataBit(GPIOA,GPIO_Pin_8)
+#define RS485_ADDR_1BIT  GPIO_ReadInputDataBit(GPIOB,GPIO_Pin_15)
+#define RS485_ADDR_2BIT  GPIO_ReadInputDataBit(GPIOB,GPIO_Pin_14)
+#define RS485_ADDR_3BIT  GPIO_ReadInputDataBit(GPIOB,GPIO_Pin_13)
+#define RS485_ADDR_4BIT  GPIO_ReadInputDataBit(GPIOB,GPIO_Pin_12)
+
 
 #ifdef SIM800C_BOARD
 #define			RECV_COM_MSG_HEAD					0x68

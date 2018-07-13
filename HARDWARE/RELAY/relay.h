@@ -6,6 +6,6 @@ void relay_init(void);//≥ı ºªØ
 
 #define RELAY_ON	1
 #define RELAY_OFF	0
-#define RELAY_CTRL PBout(7)	// PB7
+#define RELAY_CTRL PBout(4)	// PB4
 				    
 #endif

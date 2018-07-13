@@ -37,7 +37,7 @@ void ntp_update(void);               //网络同步时间
 void sim800c_test(void);			 //SIM800C主测试函数
 
 
-
+void sim800c_recv_unlock_data(void);
 void sim800c_process(void);
 void sim800c_init(void);
 
@@ -48,9 +48,9 @@ void sim800c_init(void);
 #define			SIM800C_SEND_MAX_LENGHT				256
 
 enum server_connect_state{
-	SERVER_DISCONNECTED = 0,
-	SERVER_CONNECTED,
-	SERVER_CLOSED
+	SERVER_CLOSED = 0,
+	SERVER_CONNECTING,
+	SERVER_CONNECTED
 };
 
 enum sim800c_ready_state{
