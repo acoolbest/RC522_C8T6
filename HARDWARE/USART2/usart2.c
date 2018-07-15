@@ -57,13 +57,13 @@ void USART2_Init(u32 bound)
 	RCC_APB1PeriphClockCmd(RCC_APB1Periph_USART2,ENABLE);
 
  	USART_DeInit(USART2);                                //复位串口1
-		 //USART2_TX   PA.2
+		 //USART2_TX   PA.2		//接sim800c的Rx
     GPIO_InitStructure.GPIO_Pin = GPIO_Pin_2;            //PA.2
     GPIO_InitStructure.GPIO_Speed = GPIO_Speed_50MHz;
     GPIO_InitStructure.GPIO_Mode = GPIO_Mode_AF_PP;	     //复用推挽输出
     GPIO_Init(GPIOA, &GPIO_InitStructure);               //初始化PA2
    
-    //USART2_RX	  PA.3
+    //USART2_RX	  PA.3			//接sim800c的Tx
     GPIO_InitStructure.GPIO_Pin = GPIO_Pin_3;            //PA.3
     GPIO_InitStructure.GPIO_Mode = GPIO_Mode_IN_FLOATING;//浮空输入
     GPIO_Init(GPIOA, &GPIO_InitStructure);               //初始化PA3

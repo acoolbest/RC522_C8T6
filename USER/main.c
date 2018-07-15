@@ -39,8 +39,8 @@ int main(void)
 	SysTick_Init();
 	NVIC_Configuration();
 	RS485_init(RS485_BaudRate);
-	sim800c_init();
 	USART2_Init(115200);				//sim800c控制接口初始化
+	sim800c_init();
 	delay_ms(0);						//启动系统时钟
 	while(1)
 	{

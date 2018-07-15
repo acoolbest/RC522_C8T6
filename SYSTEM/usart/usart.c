@@ -192,13 +192,13 @@ void uart_init(u32 bound){
 
 	RCC_APB2PeriphClockCmd(RCC_APB2Periph_USART1|RCC_APB2Periph_GPIOA, ENABLE);	//使能USART1，GPIOA时钟
 	USART_DeInit(USART1);  //复位串口1
-	//USART1_TX   PA.9
+	//USART1_TX   PA.9	//接U转串的Rx
 	GPIO_InitStructure.GPIO_Pin = GPIO_Pin_9; //PA.9
 	GPIO_InitStructure.GPIO_Speed = GPIO_Speed_50MHz;
 	GPIO_InitStructure.GPIO_Mode = GPIO_Mode_AF_PP;	//复用推挽输出
 	GPIO_Init(GPIOA, &GPIO_InitStructure); //初始化PA9
 
-	//USART1_RX	  PA.10
+	//USART1_RX	  PA.10	//接U转串的Tx
 	GPIO_InitStructure.GPIO_Pin = GPIO_Pin_10;
 	GPIO_InitStructure.GPIO_Mode = GPIO_Mode_IN_FLOATING;//浮空输入
 	GPIO_Init(GPIOA, &GPIO_InitStructure);  //初始化PA10

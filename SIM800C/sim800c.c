@@ -38,7 +38,7 @@ u8* sim800c_check_cmd(u8 *str)
 	{ 
 		USART2_RX_BUF[USART2_RX_STA&0X7FFF]=0;//添加结束符
 		strx=strstr((const char*)USART2_RX_BUF,(const char*)str);
-		USART1SendString(USART2_RX_BUF, USART2_RX_STA&0X7FFF);
+		//USART1SendString(USART2_RX_BUF, USART2_RX_STA&0X7FFF);
 	} 
 	return (u8*)strx;
 }
@@ -393,6 +393,7 @@ void sim800c_detect(void)
 
 	if(g_server_connect_state == SERVER_CLOSED || g_heartbeat_err_count > 3)//连接中断了,或者连续3次心跳没有正确发送成功,则重新连接
 	{
+		printf("TCP RESET connect_state[%d], heartbeat_err[%d]\n",g_server_connect_state,g_heartbeat_err_count);
 		sim800c_send_cmd("AT+CIPCLOSE=1","CLOSE OK",500);	//关闭连接
 		sim800c_send_cmd("AT+CIPSHUT","SHUT OK",500);		//关闭移动场景
 		sprintf((char*)p,"AT+CIPSTART=\"%s\",\"%s\",\"%s\"",modetbl[0],g_url,g_port);
@@ -406,9 +407,25 @@ void sim800c_detect(void)
 		time_5s = time_sys;
 		sim800c_send_cmd("AT+CIPSTATUS","OK",500);	//查询连接状态
 		if(strstr((const char*)USART2_RX_BUF,"CLOSED"))
+		{
 			g_server_connect_state = SERVER_CLOSED;
+			printf("TCP CONNECTING CLOSED\n");
+		}
+			
 		if(strstr((const char*)USART2_RX_BUF,"CONNECT OK"))
+		{
 			g_server_connect_state = SERVER_CONNECTED;
+			printf("TCP CONNECT OK\n");
+		}			
+	}
+	if(g_server_connect_state == SERVER_CONNECTED && USART2_RX_STA&0X8000)
+	{
+		USART2_RX_BUF[USART2_RX_STA&0X7FFF]=0;//添加结束符
+		if(strstr((const char*)USART2_RX_BUF,"CLOSED"))
+		{
+			g_server_connect_state = SERVER_CLOSED;
+			printf("TCP CONNECTED CLOSED\n");
+		}
 	}
 }
 
@@ -543,9 +560,19 @@ void sim800c_recv_unlock_data(void)
 		{
 			//接收数据出错，直接回复开锁失败
 			deal_unlock_state(stru_recv.slave_addr, UNLOCK_STATE_ERR);
+			printf("recv unlock err:0x%04x, 0x%04x, 0x%04x, 0x%04x, %s, 0x%04x, %s, 0x%02x\n", 
+				stru_recv.function_code, 
+				stru_recv.data_len, 
+				stru_recv.msg_id, 
+				stru_recv.terminal_len, 
+				stru_recv.terminal_id, 
+				stru_recv.rfid_len, 
+				stru_recv.rfid_id, 
+				stru_recv.slave_addr);
 		}
 		else
 		{
+			printf("recv unlock ok\n");
 			usart_ctrl_slave_unlock(stru_recv.slave_addr, stru_recv.rfid_id);
 		}
 	}
@@ -711,7 +738,7 @@ u16 sim800c_init_tcp_env(void)
 	if(sim800c_send_cmd("ATE0","OK",200)) return (res|=1<<0);	//不回显
 	
 	if(sim800c_send_cmd("AT+CGSN","OK",200)==0)			//查询产品序列号
-	{ 
+	{
 		p1=(u8*)strstr((const char*)(USART2_RX_BUF+2),"\r\n");//查找回车
 		p1[0]=0;//加入结束符 
 		g_terminal_len = sprintf((char *)g_terminal_id,"%s",USART2_RX_BUF+2);
@@ -759,7 +786,12 @@ void sim800c_reset(void)
 	delay_ms(1000);
 	POWKEY = 0;
 	
-	while(sim800c_init_tcp_env()) delay_ms(1000);
+	while(sim800c_init_tcp_env()) 
+	{
+		//USART1SendString("1",1);
+		delay_ms(1000);
+	}
+	printf("sim800c_reset done\n");
 }
 
 void sim800c_init(void)
