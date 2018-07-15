@@ -19,11 +19,15 @@ int main(void)
 	delay_ms(0);						//启动系统时钟
 	while(1)
 	{
+		#if 0
 		time_out_relay_lock();
 		RC522_test();					//RC522测试
 		RC522_RW(RC522_READ_TYPE, RC522_buffer);
 		RC522_RW(RC522_WRITE_TYPE, RC522_buffer);
 		usart_process();
+		#endif
+		rs485_process();
+		rc522_process();
 	}
 }
 

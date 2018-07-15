@@ -508,10 +508,20 @@ u8 rs485_send_cmd(u8 *cmd, u16 len)
 	return ret;
 }
 
+#ifdef SIM800C_BOARD
 void rs485_process(void)
 {
 	usart_get_slave_addr();
 	usart_get_slave_rfid();
 	usart_get_new_rfid_info();
 }
+#endif
 
+#ifdef RC522_BOARD
+void rs485_process(void)
+{
+	usart_get_slave_addr();
+	usart_get_slave_rfid();
+	usart_get_new_rfid_info();
+}
+#endif

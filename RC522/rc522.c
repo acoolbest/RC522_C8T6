@@ -15,6 +15,7 @@ void RC522_IO_Init(void)
 	SPI_Configuration(SPI1);
 }
 
+#if 0
 /*
 /////////////////////////////////////////////////////////////////////
 //功    能：写RC632寄存器
@@ -132,6 +133,7 @@ return ucResult;
 }
 */
 //#define MAXRLEN 18
+#endif
 
 /////////////////////////////////////////////////////////////////////
 //功    能：寻卡
@@ -711,7 +713,6 @@ void RC522_Config(uint8_t Card_Type)
 		//WriteRawRC(TxAutoReg,0x40);
 		delay_ms(5);
 		PcdAntennaOn();
-
 	}	
 }
 
@@ -757,15 +758,6 @@ uint8_t PcdWrite0Block(void)
 	}
 
 	return MI_ERR;
-}
-
-void RC522_Init(void)
-{
-	RC522_IO_Init();
-	PcdReset();
-	PcdAntennaOff();
-	delay_ms(2);
-	PcdAntennaOn();
 }
 
 /////////////////////////////////////////////////////////////////////
@@ -832,6 +824,7 @@ uint8_t RC522_RW(uint8_t type, uint8_t * data)
 					{
 						if(PcdWrite(5,data) != MI_OK) return MI_ERR;
 						delay_ms(8);//delay_us(8);
+						return MI_OK;
 					}
 					
 					if(PcdRead(5,data) == MI_OK)
@@ -955,4 +948,17 @@ void RC522_test(void)
 	}
 }
 
+void rc522_process(void)
+{
+
+}
+
+void RC522_Init(void)
+{
+	RC522_IO_Init();
+	PcdReset();
+	PcdAntennaOff();
+	delay_ms(2);
+	PcdAntennaOn();
+}
 

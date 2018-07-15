@@ -17,8 +17,8 @@
 //1,支持ucos
 #define SYSTEM_SUPPORT_UCOS		0		//定义系统文件夹是否支持UCOS
 
-#define SIM800C_BOARD
-//#define RC522_BOARD														    
+//#define SIM800C_BOARD
+#define RC522_BOARD														    
 	 
 //位带操作,实现51类似的GPIO控制功能
 //具体实现思想,参考<<CM3权威指南>>第五章(87页~92页).

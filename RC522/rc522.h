@@ -1,3 +1,5 @@
+#ifndef _RC522_H_
+#define _RC522_H_
 #include "stm32f10x.h"
 
 
@@ -9,11 +11,6 @@
 
 #define RC522_ENABLE                    GPIO_ResetBits(GPIOA,GPIO_Pin_4)
 #define RC522_DISABLE                   GPIO_SetBits(GPIOA,GPIO_Pin_4)
-
-
-
-
-
 
 /////////////////////////////////////////////////////////////////////
 //MF522ÃüÁî×Ö
@@ -129,6 +126,7 @@
 
 #define MAXRLEN                   18
 
+void rc522_process(void);
 void RC522_IO_Init(void);
 void RC522_test(void);
 void RC522_Init(void);
@@ -221,44 +219,4 @@ void RC522_Config(uint8_t Card_Type);
  * https://blog.csdn.net/baidu_34570497/article/details/79689778
  * http://www.51hei.com/bbs/dpj-85337-1.html
  */
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
+#endif
