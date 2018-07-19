@@ -28,6 +28,7 @@ struct slave_device_info{
 #define			COM_MAX_SLAVE_ADDR		0x1F
 
 extern struct slave_device_info g_slave_device_info[COM_MAX_SLAVE_ADDR+1];
+extern struct slave_device_info g_device_info;
 
 #define LED0 PCout(13)	// PC13
 

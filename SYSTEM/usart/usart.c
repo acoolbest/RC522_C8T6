@@ -287,7 +287,7 @@ static void init_RS485_addr(u8 * rs485_addr)
 	GPIO_InitStruct.GPIO_Pin = GPIO_Pin_15 | GPIO_Pin_14 | GPIO_Pin_13 | GPIO_Pin_12;
 	GPIO_Init(GPIOB, &GPIO_InitStruct);
 	
-	*rs485_addr = (RS485_ADDR_0BIT << 0) 
+	*rs485_addr = (RS485_ADDR_0BIT << 0)
 		| (RS485_ADDR_1BIT << 1) 
 		| (RS485_ADDR_2BIT << 2)
 		| (RS485_ADDR_3BIT << 3)

@@ -45,13 +45,9 @@ enum enum_rfid_state
 	RFID_EXIST
 };
 
-void usart_process(void);
-
 void usart_ctrl_slave_unlock(u8 addr, u8 * rfid_id);
 void unlock_timeout_increase(void);
-void update_slave_addr(u8 addr, u8 addr_state);
 void deal_unlock_state(u8 addr, u8 state);
-u8 rs485_send_cmd(u8 *cmd, u16 len);
 void rs485_process(void);
 
 #endif

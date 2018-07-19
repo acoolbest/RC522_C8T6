@@ -4,6 +4,7 @@
 #include "rc522.h"
 #include "delay.h"
 #include "spi_driver.h"
+#include "buzzer.h"
 
 void RC522_IO_Init(void)
 {
@@ -769,12 +770,12 @@ uint8_t PcdWrite0Block(void)
 uint8_t change_key(uint8_t addr, uint8_t *pSnr)
 {
 	uint8_t key_addr = addr/4*4+3;
-	uint8_t data[16] = {0xff,0xff,0xff,0xff,0xff,0xff,
-						0xff,0x07,0x80,0x69,
-						0xff,0xff,0xff,0xff,0xff,0xff};
-	uint8_t key_default[6] = {0xff,0xff,0xff,0xff,0xff,0xff};
-	uint8_t keyA[6] = {0x02,0x00,0x01,0x08,0x00,0x06};
-	uint8_t keyB[6] = {0x32,0x30,0x31,0x38,0x30,0x36};
+	const static uint8_t data[16] = {0xff,0xff,0xff,0xff,0xff,0xff,
+									0xff,0x07,0x80,0x69,
+									0xff,0xff,0xff,0xff,0xff,0xff};
+	const static uint8_t key_default[6] = {0xff,0xff,0xff,0xff,0xff,0xff};
+	const static uint8_t keyA[6] = {0x02,0x00,0x01,0x08,0x00,0x06};
+	const static uint8_t keyB[6] = {0x32,0x30,0x31,0x38,0x30,0x36};
 	if(PcdAuthState(PICC_AUTHENT1A,key_addr,key_default,pSnr) == MI_OK)
 	{
 		if(PcdRead(key_addr,data) == MI_OK)
@@ -794,16 +795,19 @@ uint8_t change_key(uint8_t addr, uint8_t *pSnr)
 //返    回: 成功返回MI_OK
 /////////////////////////////////////////////////////////////////////
 
-uint8_t RC522_RW(uint8_t type, uint8_t * data)
+uint8_t RC522_RW(uint8_t type)
 {
+	
 	uint8_t Card_Type[2];
 	uint8_t Card_ID[4];
-	uint8_t key_default[6] = {0xff,0xff,0xff,0xff,0xff,0xff};    
-	uint8_t keyA[6] = {0x02,0x00,0x01,0x08,0x00,0x06};   //密码
+	const static uint8_t key_default[6] = {0xff,0xff,0xff,0xff,0xff,0xff};    
+	const static uint8_t keyA[6] = {0x02,0x00,0x01,0x08,0x00,0x06};   //密码
+	const static uint8_t data_write[16] = "smartlock v1.0";
+	uint8_t data_read[16] = {0};
 	
-	static uint8_t req_code = PICC_REQALL;
-	
-	if(PcdRequest(req_code, Card_Type) == MI_OK)
+	if(g_device_info.unlock_state == LOCK_STATE_ON) return MI_ERR;//开锁状态下不进行读写
+
+	if(PcdRequest(rc522_req_type, Card_Type) == MI_OK)
 	{
 		uint16_t cardType = (Card_Type[0]<<8)|Card_Type[1];
 		if(cardType == 0x4400 
@@ -814,23 +818,38 @@ uint8_t RC522_RW(uint8_t type, uint8_t * data)
 		{
 			if(PcdAnticoll(Card_ID) == MI_OK && PcdSelect(Card_ID) == MI_OK)
 			{
-				if(PcdAuthState(PICC_AUTHENT1A,5,key_default,Card_ID) == MI_OK)
+				if(type == RC522_WRITE_TYPE)
 				{
-					change_key(5, Card_ID);//改密码
+					if(PcdAuthState(PICC_AUTHENT1A,5,key_default,Card_ID) == MI_OK)
+					{
+						change_key(5, Card_ID);//改密码
+					}
 				}
 				if(PcdAuthState(PICC_AUTHENT1A,5,keyA,Card_ID) == MI_OK)
 				{
 					if(type == RC522_WRITE_TYPE)
 					{
-						if(PcdWrite(5,data) != MI_OK) return MI_ERR;
-						delay_ms(8);//delay_us(8);
+						if(PcdWrite(5,data_write) != MI_OK) return MI_ERR;
+						delay_ms(10);
+						if(PcdRead(5,data_read) != MI_OK) return MI_ERR;
+						if(memcmp(data_write, data_read, sizeof(data_read))) return MI_ERR;
+						
+						buzzer_play(BUZZER_PLAY_LOCK);//写卡成功
+						PcdHalt();
+						rc522_req_type = PICC_REQIDL;
 						return MI_OK;
 					}
 					
-					if(PcdRead(5,data) == MI_OK)
+					if(PcdRead(5,data_read) == MI_OK 
+						&& !memcmp(data_write, data_read, sizeof(data_read)))
 					{
 						PcdHalt();
-						req_code = PICC_REQIDL;
+						if(g_device_info.rfid_state == RFID_PULL_OUT)
+						{
+							g_device_info.rfid_state = RFID_INSERT;
+							buzzer_play(BUZZER_PLAY_LOCK);//设备归还
+						}
+						rc522_req_type = PICC_REQIDL;
 						return MI_OK;
 
 					}
@@ -838,6 +857,7 @@ uint8_t RC522_RW(uint8_t type, uint8_t * data)
 			}
 		}
 	}
+	if(rc522_req_type == RC522_REQ_ALL) g_device_info.rfid_state = RFID_PULL_OUT;
 	return MI_ERR;
 }
 
@@ -950,7 +970,11 @@ void RC522_test(void)
 
 void rc522_process(void)
 {
-
+	#ifdef RC522_WRITE
+	RC522_RW(RC522_WRITE_TYPE);
+	else
+	RC522_RW(RC522_READ_TYPE);
+	#endif
 }
 
 void RC522_Init(void)

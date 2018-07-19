@@ -133,9 +133,6 @@ void RC522_Init(void);
 
 #define RC522_READ_TYPE				0x00
 #define RC522_WRITE_TYPE			0x01
-uint8_t RC522_RW(uint8_t type, uint8_t * data);
-
-
 
 char PcdRequest(uint8_t req_code,uint8_t *pTagType);
 char PcdAnticoll(uint8_t *pSnr);

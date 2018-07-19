@@ -26,6 +26,25 @@ const u8 g_url[] = "208l8w1838.51mypc.cn";
 const u8 g_port[] = "48438";
 
 //////////////////////////////////////////////////////////////////////////////////
+//将1个字符转换为16进制数字
+//chr:字符,0~9/A~F/a~F
+//返回值:chr对应的16进制数值
+u8 sim800c_chr2hex(u8 chr)
+{
+	if(chr>='0'&&chr<='9')return chr-'0';
+	if(chr>='A'&&chr<='F')return (chr-'A'+10);
+	if(chr>='a'&&chr<='f')return (chr-'a'+10); 
+	return 0;
+}
+//将1个16进制数字转换为字符
+//hex:16进制数字,0~15;
+//返回值:字符
+u8 sim800c_hex2chr(u8 hex)
+{
+	if(hex<=9)return hex+'0';
+	if(hex>=10&&hex<=15)return (hex-10+'A'); 
+	return '0';
+}
 
 //sim800C发送命令后,检测接收到的应答
 //str:期待的应答结果

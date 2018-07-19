@@ -1,5 +1,5 @@
 #include "relay.h"
-
+#include "buzzer.h"
 void relay_init(void)
 {
   GPIO_InitTypeDef 
@@ -15,6 +15,7 @@ void relay_init(void)
 void relay_on(void)
 {
   GPIO_SetBits(GPIOB,GPIO_Pin_4);
+  buzzer_play(BUZZER_PLAY_UNLOCK);//…Ë±∏Ω‚À¯
 }
 //relay off PB4
 void relay_off(void)

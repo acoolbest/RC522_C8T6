@@ -16,4 +16,8 @@ u8 rc522_req_type = RC522_REQ_ALL;
 struct slave_device_info g_slave_device_info[COM_MAX_SLAVE_ADDR+1] = {0};
 #endif
 
+#ifdef RC522_BOARD
+struct slave_device_info g_device_info = {0};
+#endif
+
 
