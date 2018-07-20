@@ -44,10 +44,11 @@ enum enum_rfid_state
 	RFID_INSERT,
 	RFID_EXIST
 };
-
+#ifdef SIM800C_BOARD
 void usart_ctrl_slave_unlock(u8 addr, u8 * rfid_id);
 void unlock_timeout_increase(void);
 void deal_unlock_state(u8 addr, u8 state);
+#endif
 void rs485_process(void);
 
 #endif

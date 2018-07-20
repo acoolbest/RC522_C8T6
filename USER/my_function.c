@@ -7,6 +7,7 @@
 #include "delay.h"
 #include "usart.h"
 #include "my_function.h"
+#include "relay.h"
 
 void get_chipID(uint8_t * chipID)
 {

@@ -5,6 +5,10 @@
 #include "delay.h"
 #include "spi_driver.h"
 #include "buzzer.h"
+#include "my_function.h"
+#include "my_global.h"
+
+#ifdef RC522_BOARD
 
 void RC522_IO_Init(void)
 {
@@ -255,7 +259,7 @@ char PcdSelect(uint8_t *pSnr)
 //          pSnr[IN]：卡片序列号，4字节
 //返    回: 成功返回MI_OK
 /////////////////////////////////////////////////////////////////////                   
-char PcdAuthState(uint8_t auth_mode,uint8_t addr,uint8_t *pKey,uint8_t *pSnr)
+char PcdAuthState(uint8_t auth_mode,uint8_t addr, const uint8_t *pKey,uint8_t *pSnr)
 {
 	char status;
 	uint32_t  unLen;
@@ -309,7 +313,7 @@ char PcdRead(uint8_t addr,uint8_t *pData)
 //          p [IN]：写入的数据，16字节
 //返    回: 成功返回MI_OK
 /////////////////////////////////////////////////////////////////////                 
-char PcdWrite(uint8_t addr,uint8_t *pData)
+char PcdWrite(uint8_t addr, const uint8_t *pData)
 {
 	char status;
 	uint32_t  unLen;
@@ -770,7 +774,7 @@ uint8_t PcdWrite0Block(void)
 uint8_t change_key(uint8_t addr, uint8_t *pSnr)
 {
 	uint8_t key_addr = addr/4*4+3;
-	const static uint8_t data[16] = {0xff,0xff,0xff,0xff,0xff,0xff,
+	static uint8_t data[16] = {0xff,0xff,0xff,0xff,0xff,0xff,
 									0xff,0x07,0x80,0x69,
 									0xff,0xff,0xff,0xff,0xff,0xff};
 	const static uint8_t key_default[6] = {0xff,0xff,0xff,0xff,0xff,0xff};
@@ -972,7 +976,7 @@ void rc522_process(void)
 {
 	#ifdef RC522_WRITE
 	RC522_RW(RC522_WRITE_TYPE);
-	else
+	#else
 	RC522_RW(RC522_READ_TYPE);
 	#endif
 }
@@ -985,4 +989,4 @@ void RC522_Init(void)
 	delay_ms(2);
 	PcdAntennaOn();
 }
-
+#endif

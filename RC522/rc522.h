@@ -126,10 +126,12 @@
 
 #define MAXRLEN                   18
 
+#ifdef RC522_BOARD
 void rc522_process(void);
 void RC522_IO_Init(void);
 void RC522_test(void);
 void RC522_Init(void);
+#endif
 
 #define RC522_READ_TYPE				0x00
 #define RC522_WRITE_TYPE			0x01
@@ -137,9 +139,9 @@ void RC522_Init(void);
 char PcdRequest(uint8_t req_code,uint8_t *pTagType);
 char PcdAnticoll(uint8_t *pSnr);
 char PcdSelect(uint8_t *pSnr);
-char PcdAuthState(uint8_t auth_mode,uint8_t addr,uint8_t *pKey,uint8_t *pSnr);
+char PcdAuthState(uint8_t auth_mode,uint8_t addr, const uint8_t *pKey,uint8_t *pSnr);
 char PcdRead(uint8_t addr,uint8_t *pData);
-char PcdWrite(uint8_t addr,uint8_t *pData);
+char PcdWrite(uint8_t addr, const uint8_t *pData);
 char PcdValue(uint8_t dd_mode,uint8_t addr,uint8_t *pValue);
 char PcdBakValue(uint8_t sourceaddr, uint8_t goaladdr);
 char PcdHalt(void);

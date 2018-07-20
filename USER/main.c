@@ -6,6 +6,7 @@
 #include "rc522.h"
 #include "relay.h"
 #include "buzzer.h"
+#include "my_function.h"
 
 int main(void)
 {

@@ -87,8 +87,9 @@ void SysTick_Handler(void)
 	if(rs485_read_timeout) rs485_read_timeout--;
 
 	if(time_lock) time_lock++;
-	
+	#ifdef SIM800C_BOARD
 	unlock_timeout_increase();
+	#endif
 	
 	//LED0 = 1;
 }

@@ -8,6 +8,7 @@
 #include "usart2.h"
 #include "my_function.h"
 #include "my_global.h"
+#ifdef SIM800C_BOARD
 
 u16 g_send_msg_id = 0;
 u16 g_recv_unlock_msg_id[COM_MAX_SLAVE_ADDR+1] = {0};
@@ -824,5 +825,5 @@ void sim800c_init(void)
 	sim800c_reset();
 	
 }
-
+#endif
 
