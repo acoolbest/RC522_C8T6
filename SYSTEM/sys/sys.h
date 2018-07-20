@@ -17,8 +17,8 @@
 //1,支持ucos
 #define SYSTEM_SUPPORT_UCOS		0		//定义系统文件夹是否支持UCOS
 
-//#define SIM800C_BOARD
-#define RC522_BOARD
+#define SIM800C_BOARD
+//#define RC522_BOARD
 #define RC522_WRITE
 
 	 
